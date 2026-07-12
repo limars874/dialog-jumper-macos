@@ -1,23 +1,28 @@
 # Resume snapshot
 
 ## Goal
-Dialog Jumper MVP 已落地；当前在 **UX polish**（清 debug / 冗余文案与提示）。
+Dialog Jumper macOS MVP + UX polish — **本轮收尾**。
 
 ## Doing now
-**Polish pass（grill-with-docs 已确认）** 已实现：
-- NSLog 仅 `#if DEBUG`；菜单无 `panelServices` lab 串
-- 菜单三行状态；去掉 File Dialog 独立行与 Request
-- 软失败只 status；revoke / Accessibility paused 可 alert
-- Toolbar 去 hint 与 header 教学串
-- Glossary：**Recent Folder** = 成功 Jump 后的候选
+无进行中实现票。
+
+## Done (this arc)
+- Implementation tickets **01–06 / 08 / 09 done**；**07 cancelled**（无全局热键）
+- Favorites add 信任 path（同 Recents）；Recents/Favorites 整行可点 + `.activeAlways` hover
+- Runtime recovery：revoke 拆 chrome + 一次性 alert + Recheck
+- Support-matrix pack：`.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`（lab PASS vs REQ 诚实）
+- UX polish：DEBUG-only NSLog、干净菜单、软失败无 modal、toolbar 顶栏收紧
 
 ## Key context
-- App：`apps/DialogJumper` / `scripts/run-dev-app.sh`
-- Jump 内核未改；07 仍 cancelled
-- 验收包仍在：`.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`（R2 Save 等仍 REQ）
+- App：`apps/DialogJumper` · `scripts/run-dev-app.sh`（DialogJumper Dev，no hardened runtime）
+- Jump：⇧⌘G → PathTextField → directed click → Return；不代 Open/Save
+- Glossary：`docs/context.md`（Recent Folder = 成功 Jump 后的候选）
+- Constraints：`docs/constraints.md`（整行 hit-test、activeAlways、冷启动沉淀等）
 
-## Next
-Owner 手测 polish；可选：R2 Save 填 pack、多宿主、多屏 residual。
+## Next (optional, not open tickets)
+- Pack R2 Save HITL；多宿主 / 多 OS matrix 填格
+- 多屏 geometry residual
+- 新能力需新 grill / tickets
 
 ## Blockers
 无。

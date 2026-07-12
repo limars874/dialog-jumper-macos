@@ -124,3 +124,8 @@
 - **Did**: grill 锁定后清理 debug/lab 菜单串、双通道 soft-fail alert、Request 菜单项、toolbar hint/教学 header；`#if DEBUG` NSLog；对齐 Recent Folder glossary。
 - **Decided**: 软失败只 status；revoke/Accessibility 硬恢复可 alert；菜单 Settings+Recheck+Relaunch；不做热键/新能力/matrix greening。
 - **Refs**: `AppDelegate.swift`, `AttachedPathToolbarController.swift`, `AccessibilityGate.swift`, `docs/context.md`
+
+## [2026-07-12] Arc wrap-up — MVP + polish closed
+- **Did**: Owner 确认侧栏顶栏 polish 可用；收尾 progress。实现队列空；无 open implementation 票。
+- **Decided**: 本轮交付以 lab 可用 MVP 为准；matrix greening / 多 OS 宣称不在本轮。
+- **Refs**: `docs/progress.md`, commits through `55cba2a`
