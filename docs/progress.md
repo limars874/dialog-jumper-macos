@@ -18,14 +18,14 @@ Dialog Jumper：标准 macOS Open/Save 上的 Folder Jump 侧栏（Path / Recent
 
 ## Key context
 - Run：`apps/DialogJumper/scripts/run-dev-app.sh`
+- Release：`apps/DialogJumper/scripts/package-release.sh` + `.github/workflows/release.yml`（tag `v*`）
 - README：仓库根 `README.md`
 - 多侧栏讨论笔记：`docs/notes/single-vs-multi-sidebar.md`（结论：先不搞）
 - Pack：`.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`
 
 ## Next (optional)
+- 推送 tag 验证 Actions Release
 - matrix Save / 多宿主手测
-- 拖放/几何边角再打磨
-- 新能力另开范围
 
 ## Blockers
 无。
