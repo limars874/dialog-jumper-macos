@@ -142,9 +142,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func configureStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // 固定槽宽：DJ / DJ! / DJ● 切换时不挤动相邻菜单栏项
+        statusItem = NSStatusBar.system.statusItem(withLength: Self.menuBarStatusLength)
         statusItem.isVisible = true
-        statusItem.button?.title = "DJ"
+        applyMenuBarTitle()
 
         let menu = NSMenu()
         menu.delegate = self
@@ -277,7 +278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         let revoked = authorization == .paused && accessibilityHadBeenReady
-        statusItem.button?.title = menuBarGlyph()
+        applyMenuBarTitle()
 
         menu.item(at: MenuIndex.accessibility)?.title =
             AccessibilityGate.statusTitle(authorization, revoked: revoked)
@@ -327,11 +328,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.item(at: MenuIndex.relaunch)?.isEnabled = !jumpReady
     }
 
+    /// 菜单栏展示宽（pt）。略大于 monospaced「DJ●」，避免裁切。
+    private static let menuBarStatusLength: CGFloat = 36
+
+    private func applyMenuBarTitle() {
+        guard let button = statusItem?.button else { return }
+        // 等宽字体 + 三态同长度字符串，双保险稳住视觉宽度
+        button.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        button.alignment = .center
+        button.title = menuBarGlyph()
+    }
+
     private func menuBarGlyph() -> String {
+        // 一律 3 个字符宽（idle 用尾部 figure space 补齐，避免「DJ」变短）
+        let pad = "\u{2007}" // figure space
         switch detectionState {
-        case .eligible: return "DJ●"
-        case .accessibilityPaused: return "DJ!"
-        case .none: return authorization == .ready ? "DJ" : "DJ!"
+        case .eligible:
+            return "DJ●"
+        case .accessibilityPaused:
+            return "DJ!"
+        case .none:
+            return authorization == .ready ? "DJ\(pad)" : "DJ!"
         }
     }
 
