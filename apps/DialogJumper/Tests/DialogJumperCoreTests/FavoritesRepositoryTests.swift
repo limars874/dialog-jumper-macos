@@ -167,11 +167,23 @@ struct FavoritesRepositoryTests {
         #expect(repo.list().count == FavoritesRepository.capacity)
     }
 
-    @Test func addRawPathInvalidWhenMissing() {
+    @Test func addRawPathTrustsMissingLikeRecents() {
         let store = InMemoryFavoritesStore()
         let presence = StubPresence(table: [:])
         let repo = FavoritesRepository(store: store, presence: presence)
-        #expect(repo.add(rawPath: "/does/not/exist") == .invalid(.notFound))
+        // 写入不探测：缺失路径仍可 pin；list 才标 unavailable。
+        #expect(repo.add(rawPath: "/does/not/exist") == .added)
+        let list = repo.list()
+        #expect(list.count == 1)
+        #expect(list[0].path == "/does/not/exist")
+        #expect(list[0].availability == .unavailable(.notFound))
+        #expect(list[0].isAvailable == false)
+    }
+
+    @Test func addRawPathRejectsFreeTextNotPath() {
+        let store = InMemoryFavoritesStore()
+        let repo = FavoritesRepository(store: store, presence: StubPresence(table: [:]))
+        #expect(repo.add(rawPath: "Documents") == .invalid(.notPath))
         #expect(repo.list().isEmpty)
     }
 

@@ -18,10 +18,11 @@
 - Core: `FavoritesRepository` + `UserDefaultsFavoritesStore` / `InMemoryFavoritesStore`
   - Explicit user order (array index); soft capacity **40**
   - Path dedupe on add; unavailable never silently deleted
-  - Optional URL `bookmarkData` (`.minimalBookmark`) stored when creatable; **identity/dedupe remains path-based** (`standardizingPath`); resolve falls back to saved path if bookmark fails
+  - **Add trusts path like Recents.record**（不 probe、不建 bookmark）；仅 list/Jump 做可用性探测
+  - Codable 仍可带遗留 `bookmarkData` 字段，新写入为 nil，resolve 忽略以免 TCC
   - No Finder sidebar import/export; no security-scoped start/stop (non-sandbox)
 - UI: `AttachedPathToolbarController`
-  - Path section: **Jump** + **★ Favorite** (explicit add from path field via PathResolver)
+  - Path section: **Jump** + **★ Favorite**（path 字段 expand/~ 后信任写入，不 probe）
   - Recents + Favorites sections; Favorites rows reuse full-hit `FolderListRowControl` (`.activeAlways` hover) with sibling ↑↓✕ manage buttons
   - Click available → jump; unavailable → alert, no jump
 - App: holds repository; refresh lists on chrome show / after manage / after successful jump

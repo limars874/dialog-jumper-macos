@@ -2,10 +2,9 @@ import Foundation
 
 /// One user-pinned Favorite Folder. Order is explicit (array index), not last-used.
 ///
-/// Residual: identity/dedupe is path-based (`standardizingPath`). Optional
-/// `bookmarkData` is stored when creatable for future path recovery; list/jump
-/// still fall back to the saved path if bookmark resolve fails. No Finder
-/// sidebar sync; non-sandbox app does not start security-scoped access.
+/// Residual: identity/dedupe is path-based (`standardizingPath`). `bookmarkData`
+/// is legacy/optional in the Codable shape; new adds store path only (same trust
+/// model as Recents). No Finder sidebar sync; no security-scoped access.
 public struct FavoriteFolder: Codable, Equatable, Sendable {
     public let path: String
     public let bookmarkData: Data?
@@ -66,7 +65,7 @@ public enum FavoriteAddResult: Equatable, Sendable {
     case added
     case alreadyPresent
     case atCapacity
-    /// Add rejected because path is not a resolvable directory right now.
+    /// 仅语法级拒绝（空 / 不像 path）；不因「此刻不存在」拒绝。
     case invalid(PathResolutionFailure)
 }
 
@@ -140,39 +139,45 @@ public final class FavoritesRepository: @unchecked Sendable {
         return cache.contains { Self.samePath($0.path, key) }
     }
 
-    /// Explicit add. Validates directory now; rejects duplicates and capacity overflow.
+    /// Explicit add. Trust path like Recents.record — no FS probe, no bookmark.
+    /// Existence is only checked on `list()` / Jump (same as Recents).
     @discardableResult
     public func add(url: URL, at date: Date = Date()) -> FavoriteAddResult {
-        let path = Self.canonicalPath(url)
-        switch Self.probe(path: path, presence: presence) {
-        case .available:
-            break
-        case .unavailable(let reason):
-            return .invalid(reason)
-        }
+        appendTrustedPath(Self.canonicalPath(url), at: date)
+    }
 
+    /// Explicit add from raw path: expand ~ / standardize only; no directory probe.
+    @discardableResult
+    public func add(
+        rawPath: String,
+        at date: Date = Date(),
+        homeDirectoryPath: String = NSHomeDirectory()
+    ) -> FavoriteAddResult {
+        let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return .invalid(.empty)
+        }
+        guard PathResolver.looksLikePath(trimmed) else {
+            return .invalid(.notPath)
+        }
+        let expanded = PathResolver.expandTilde(trimmed, homeDirectoryPath: homeDirectoryPath)
+        let path = Self.canonicalPathString(expanded)
+        guard path.hasPrefix("/") else {
+            return .invalid(.notPath)
+        }
+        return appendTrustedPath(path, at: date)
+    }
+
+    private func appendTrustedPath(_ path: String, at date: Date) -> FavoriteAddResult {
         if cache.contains(where: { Self.samePath($0.path, path) }) {
             return .alreadyPresent
         }
         if cache.count >= Self.capacity {
             return .atCapacity
         }
-
-        let bookmark = Self.makeBookmark(for: URL(fileURLWithPath: path, isDirectory: true))
-        cache.append(FavoriteFolder(path: path, bookmarkData: bookmark, addedAt: date))
+        cache.append(FavoriteFolder(path: path, bookmarkData: nil, addedAt: date))
         store.save(cache)
         return .added
-    }
-
-    /// Explicit add from a raw path string (expands ~ via PathResolver first).
-    @discardableResult
-    public func add(rawPath: String, at date: Date = Date()) -> FavoriteAddResult {
-        switch PathResolver.resolve(rawPath, presence: presence) {
-        case .ok(let url):
-            return add(url: url, at: date)
-        case .failed(let reason):
-            return .invalid(reason)
-        }
     }
 
     public func remove(path: String) {
@@ -255,29 +260,10 @@ public final class FavoritesRepository: @unchecked Sendable {
         return result
     }
 
-    private static func makeBookmark(for url: URL) -> Data? {
-        // minimalBookmark is enough for non-sandbox path recovery; path remains primary key.
-        try? url.bookmarkData(
-            options: [.minimalBookmark],
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
-    }
-
     private static func resolvedPath(for folder: FavoriteFolder) -> String {
-        guard let data = folder.bookmarkData else {
-            return (folder.path as NSString).standardizingPath
-        }
-        var isStale = false
-        guard let url = try? URL(
-            resolvingBookmarkData: data,
-            options: [],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        ) else {
-            return (folder.path as NSString).standardizingPath
-        }
-        return (url.path as NSString).standardizingPath
+        // 主键是 path；遗留 bookmark 忽略，避免 resolve 再触发 TCC。
+        _ = folder.bookmarkData
+        return (folder.path as NSString).standardizingPath
     }
 
     private static func canonicalPath(_ url: URL) -> String {
