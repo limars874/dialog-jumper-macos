@@ -362,7 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // 成功 Jump 写入 Recents（Open/Save 落点观察未接，避免假写入）
             recents.record(url: URL(fileURLWithPath: path, isDirectory: true))
             refreshListChrome()
-            attachedToolbar.setStatus("Jumped · \(shortPath(path))")
+            attachedToolbar.setStatus("Jumped")
             applyToUI()
         case .failure(let failure):
             presentJumpFailure(failure)
@@ -428,7 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch favorites.add(rawPath: rawPath) {
         case .added:
             refreshListChrome()
-            attachedToolbar.setStatus("Favorited · \(shortPath(rawPath))")
+            attachedToolbar.setStatus("Favorited")
         case .alreadyPresent:
             attachedToolbar.setStatus("Already in Favorites")
         case .atCapacity:

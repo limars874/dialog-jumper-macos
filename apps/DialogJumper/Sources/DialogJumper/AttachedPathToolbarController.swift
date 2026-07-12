@@ -145,15 +145,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let w = chromeSize.width
         let h = chromeSize.height
 
-        let title = makeLabel("Path · Recents · Favorites", bold: true, size: 12)
-        title.frame = NSRect(x: 12, y: h - 28, width: w - 24, height: 18)
-
-        let status = makeLabel("Attached", bold: false, size: 10)
+        // 顶区：短状态 + Path + 按钮（无内容总标题，窗标题 Dialog Jumper 已够）
+        let status = makeLabel("", bold: false, size: 10)
         status.textColor = .secondaryLabelColor
-        status.frame = NSRect(x: 12, y: h - 44, width: w - 24, height: 14)
+        status.frame = NSRect(x: 12, y: h - 22, width: w - 24, height: 14)
         statusLabel = status
 
-        let field = NSTextField(frame: NSRect(x: 12, y: h - 76, width: w - 24, height: 24))
+        let field = NSTextField(frame: NSRect(x: 12, y: h - 52, width: w - 24, height: 24))
         field.placeholderString = "Paste path…  / or ~"
         field.isEditable = true
         field.isSelectable = true
@@ -164,13 +162,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         field.action = #selector(jumpFromField)
         pathField = field
 
-        let jump = NSButton(frame: NSRect(x: 12, y: h - 112, width: 72, height: 28))
+        let jump = NSButton(frame: NSRect(x: 12, y: h - 88, width: 72, height: 28))
         jump.title = "Jump"
         jump.bezelStyle = .rounded
         jump.target = self
         jump.action = #selector(jumpFromField)
 
-        let add = NSButton(frame: NSRect(x: 90, y: h - 112, width: 108, height: 28))
+        let add = NSButton(frame: NSRect(x: 90, y: h - 88, width: 108, height: 28))
         add.title = "★ Favorite"
         add.bezelStyle = .rounded
         add.target = self
@@ -179,7 +177,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         addFavoriteButton = add
 
         // 列表区：Recents 上半、Favorites 下半（固定分区，避免抢高度）
-        let listTop = h - 140
+        let listTop = h - 112
         let listBottom: CGFloat = 12
         let listHeight = listTop - listBottom
         let half = floor(listHeight / 2)
@@ -234,7 +232,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         favoritesScrollView.documentView = favoritesDoc
         favoritesScroll = favoritesScrollView
 
-        root.addSubview(title)
         root.addSubview(status)
         root.addSubview(field)
         root.addSubview(jump)
@@ -433,11 +430,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         if entry.isAvailable {
             // 回填 path 字段，便于用户看到目标
             pathField?.stringValue = entry.path
-            setStatus("Jumping · \(entry.displayName)")
+            setStatus("Jumping…")
             onJump?(entry.path)
         } else {
             let reason = entry.unavailableMessage ?? "That folder is not available."
-            setStatus("Unavailable · \(entry.displayName)")
+            setStatus("Unavailable")
             onUnavailableRecent?(reason)
         }
     }
@@ -455,11 +452,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let entry = favoriteEntries[index]
         if entry.isAvailable {
             pathField?.stringValue = entry.path
-            setStatus("Jumping · \(entry.displayName)")
+            setStatus("Jumping…")
             onJump?(entry.path)
         } else {
             let reason = entry.unavailableMessage ?? "That folder is not available."
-            setStatus("Unavailable · \(entry.displayName)")
+            setStatus("Unavailable")
             onUnavailableFavorite?(reason)
         }
     }
