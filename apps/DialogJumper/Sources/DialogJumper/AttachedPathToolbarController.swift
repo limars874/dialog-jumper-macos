@@ -703,7 +703,11 @@ private final class FolderListRowControl: NSControl {
         focusRingType = .none
         configureLayerChrome()
 
+        titleLabel.usesSingleLineMode = true
+        titleLabel.maximumNumberOfLines = 1
         titleLabel.lineBreakMode = .byTruncatingMiddle
+        titleLabel.cell?.lineBreakMode = .byTruncatingMiddle
+        titleLabel.cell?.truncatesLastVisibleLine = true
         titleLabel.allowsDefaultTighteningForTruncation = true
 
         chevronLabel.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -735,12 +739,18 @@ private final class FolderListRowControl: NSControl {
         let nameText = isAvailable ? displayName : "\(displayName) · unavailable"
         let shortPath = Self.displayPath(path)
 
+        // attributed 字符串必须自带 paragraphStyle，否则 NSTextField 常不画省略号
+        let para = NSMutableParagraphStyle()
+        para.lineBreakMode = .byTruncatingMiddle
+        para.allowsDefaultTighteningForTruncation = true
+
         let attributed = NSMutableAttributedString()
         attributed.append(NSAttributedString(
             string: nameText,
             attributes: [
                 .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
-                .foregroundColor: nameColor
+                .foregroundColor: nameColor,
+                .paragraphStyle: para
             ]
         ))
         if !shortPath.isEmpty {
@@ -748,7 +758,8 @@ private final class FolderListRowControl: NSControl {
                 string: "  \(shortPath)",
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 11),
-                    .foregroundColor: pathColor
+                    .foregroundColor: pathColor,
+                    .paragraphStyle: para
                 ]
             ))
         }
