@@ -27,11 +27,16 @@ public struct FileDialogFingerprintScore: Equatable, Sendable {
     }
 
     public var isEligible: Bool { points >= FileDialogFingerprint.minimumEligibleScore }
+
+    public init(points: Int, reasons: [String], panelKind: PanelKind?) {
+        self.points = points
+        self.reasons = reasons
+        self.panelKind = panelKind
+    }
 }
 
 /// Multi-signal eligibility. Does not trust English titles alone.
 public enum FileDialogFingerprint {
-    /// Need at least one strong structural signal (id or system dialog window).
     public static let minimumEligibleScore = 2
 
     public static func score(_ signals: FileDialogWindowSignals) -> FileDialogFingerprintScore {
@@ -66,17 +71,9 @@ public enum FileDialogFingerprint {
             if kind == nil { kind = .unknown }
         }
 
-        // Title is never enough alone — at most a weak hint when already structural.
-        // Intentionally do not award points for localized Open/Save title strings.
-
-        return FileDialogFingerprintScore(
-            points: points,
-            reasons: reasons,
-            panelKind: kind
-        )
+        return FileDialogFingerprintScore(points: points, reasons: reasons, panelKind: kind)
     }
 
-    /// Bundle id heuristic for system Open and Save Panel Service.
     public static func isOpenAndSavePanelService(bundleIdentifier: String?) -> Bool {
         guard let bundleIdentifier else { return false }
         return bundleIdentifier.lowercased().contains("openandsavepanelservice")
@@ -96,10 +93,11 @@ public enum FileDialogDetectionState: Equatable, Sendable {
             return "File Dialog: none / not eligible"
         case .eligible(let dialog):
             let kind = dialog.panelKind?.rawValue ?? "unknown"
+            let why = dialog.reasons.prefix(2).joined(separator: ",")
             if let host = dialog.hostName, !host.isEmpty {
-                return "File Dialog: detected (\(kind), \(host))"
+                return "File Dialog: detected (\(kind), \(host)) [\(why)]"
             }
-            return "File Dialog: detected (\(kind))"
+            return "File Dialog: detected (\(kind)) [\(why)]"
         }
     }
 }

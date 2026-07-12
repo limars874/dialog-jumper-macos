@@ -2,7 +2,6 @@ import AppKit
 import DialogJumperCore
 
 /// Floating side chrome attached to an eligible File Dialog (Path only for ticket 04).
-@MainActor
 final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     var onJump: ((String) -> Void)?
 
@@ -84,7 +83,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .moveToActiveSpace]
+        // canJoinAllSpaces and moveToActiveSpace are mutually exclusive — combining them throws and breaks the status menu.
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.becomesKeyOnlyIfNeeded = true
 
         let root = NSView(frame: NSRect(origin: .zero, size: chromeSize))
