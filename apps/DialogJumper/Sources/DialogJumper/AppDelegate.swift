@@ -27,10 +27,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         static let lastJump = 2
         // 3 separator
         static let focusPath = 4
-        // 5 separator
-        static let recheckAccess = 6
-        static let openSettings = 7
-        static let relaunch = 8
+        static let jumpOnListClick = 5
+        // 6 separator
+        static let recheckAccess = 7
+        static let openSettings = 8
+        static let relaunch = 9
     }
 
     init(
@@ -159,8 +160,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let focus = NSMenuItem(title: "Focus Path on Toolbar…", action: #selector(jumpToPath), keyEquivalent: "j")
         focus.target = self
         menu.addItem(focus)
-        menu.addItem(.separator())
 
+        let jumpOnClick = NSMenuItem(
+            title: "Jump on List Click",
+            action: #selector(toggleJumpOnListClick(_:)),
+            keyEquivalent: ""
+        )
+        jumpOnClick.target = self
+        jumpOnClick.state = attachedToolbar.jumpOnListClick ? .on : .off
+        menu.addItem(jumpOnClick)
+
+        menu.addItem(.separator())
         let recheck = NSMenuItem(title: "Recheck Accessibility", action: #selector(recheckAccessibility), keyEquivalent: "r")
         recheck.target = self
         menu.addItem(recheck)
@@ -326,6 +336,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.item(at: MenuIndex.recheckAccess)?.isEnabled = true
         menu.item(at: MenuIndex.relaunch)?.isEnabled = !jumpReady
+        if let jumpClick = menu.item(at: MenuIndex.jumpOnListClick) {
+            jumpClick.state = attachedToolbar.jumpOnListClick ? .on : .off
+        }
     }
 
     /// 菜单栏固定槽宽（pt）。刚够 monospaced「DJ●」，避免 idle 右侧大空。
@@ -491,6 +504,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ? "Last recheck: Accessibility ready"
             : "Last recheck: \(title)"
         applyToUI()
+    }
+
+    @objc private func toggleJumpOnListClick(_ sender: NSMenuItem) {
+        attachedToolbar.jumpOnListClick.toggle()
+        sender.state = attachedToolbar.jumpOnListClick ? .on : .off
+        attachedToolbar.setStatus(
+            attachedToolbar.jumpOnListClick
+                ? "List click: Jump"
+                : "List click: Path only (double-click jumps)"
+        )
     }
 
     @objc private func openAccessibilitySettings() {

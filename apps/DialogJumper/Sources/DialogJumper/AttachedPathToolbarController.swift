@@ -15,6 +15,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     var onMoveFavoriteUp: ((String) -> Void)?
     var onMoveFavoriteDown: ((String) -> Void)?
 
+    /// 单击列表是否立即 Jump（菜单切换；双击始终 Jump）。默认 true。
+    var jumpOnListClick: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: Self.jumpOnListClickKey) == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: Self.jumpOnListClickKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Self.jumpOnListClickKey) }
+    }
+
+    private static let jumpOnListClickKey = "dialogJumper.jumpOnListClick"
     private enum ListTab: Int {
         case recents = 0
         case favorites = 1
@@ -506,10 +518,10 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         )
         row.target = self
         row.action = #selector(recentClicked(_:))
+        row.doubleAction = #selector(recentDoubleClicked(_:))
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
-        // ★ 保持 16；仅复制按钮 +50% → 24（用户只嫌复制难点）
         let starW: CGFloat = 16
         let starH: CGFloat = 16
         let copyW: CGFloat = 24
@@ -557,6 +569,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         )
         row.target = self
         row.action = #selector(finderClicked(_:))
+        row.doubleAction = #selector(finderDoubleClicked(_:))
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
@@ -607,6 +620,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         )
         row.target = self
         row.action = #selector(zoxideClicked(_:))
+        row.doubleAction = #selector(zoxideDoubleClicked(_:))
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
@@ -657,10 +671,10 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         )
         row.target = self
         row.action = #selector(favoriteClicked(_:))
+        row.doubleAction = #selector(favoriteDoubleClicked(_:))
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
-        // 单行：↑ ↓ ✕ 横排靠右
         let btnW: CGFloat = 16
         let btnH: CGFloat = 16
         let midY = (rowHeight - btnH) / 2
@@ -713,27 +727,12 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     @objc private func addFavoriteFromField() {
         onAddFavoriteFromPath?(pathField?.stringValue ?? "")
     }
-
     @objc private func recentClicked(_ sender: Any?) {
-        let index: Int?
-        if let row = sender as? FolderListRowControl {
-            index = row.entryIndex
-        } else if let button = sender as? NSControl {
-            index = button.tag
-        } else {
-            index = nil
-        }
-        guard let index, recentEntries.indices.contains(index) else { return }
-        let entry = recentEntries[index]
-        if entry.isAvailable {
-            pathField?.stringValue = entry.path
-            setStatus("Jumping…")
-            onJump?(entry.path)
-        } else {
-            let reason = entry.unavailableMessage ?? "That folder is not available."
-            setStatus("Unavailable")
-            onUnavailableRecent?(reason)
-        }
+        selectListPath(from: sender, entries: recentEntries, forceJump: false, unavailable: onUnavailableRecent)
+    }
+
+    @objc private func recentDoubleClicked(_ sender: Any?) {
+        selectListPath(from: sender, entries: recentEntries, forceJump: true, unavailable: onUnavailableRecent)
     }
 
     @objc private func recentFavorite(_ sender: Any?) {
@@ -754,25 +753,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 
     @objc private func finderClicked(_ sender: Any?) {
-        let index: Int?
-        if let row = sender as? FolderListRowControl {
-            index = row.entryIndex
-        } else if let button = sender as? NSControl {
-            index = button.tag
-        } else {
-            index = nil
-        }
-        guard let index, finderEntries.indices.contains(index) else { return }
-        let entry = finderEntries[index]
-        if entry.isAvailable {
-            pathField?.stringValue = entry.path
-            setStatus("Jumping…")
-            onJump?(entry.path)
-        } else {
-            let reason = entry.unavailableMessage ?? "That folder is not available."
-            setStatus("Unavailable")
-            onUnavailableRecent?(reason)
-        }
+        selectListPath(from: sender, entries: finderEntries, forceJump: false, unavailable: onUnavailableRecent)
+    }
+
+    @objc private func finderDoubleClicked(_ sender: Any?) {
+        selectListPath(from: sender, entries: finderEntries, forceJump: true, unavailable: onUnavailableRecent)
     }
 
     @objc private func finderFavorite(_ sender: Any?) {
@@ -793,25 +778,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 
     @objc private func zoxideClicked(_ sender: Any?) {
-        let index: Int?
-        if let row = sender as? FolderListRowControl {
-            index = row.entryIndex
-        } else if let button = sender as? NSControl {
-            index = button.tag
-        } else {
-            index = nil
-        }
-        guard let index, zoxideEntries.indices.contains(index) else { return }
-        let entry = zoxideEntries[index]
-        if entry.isAvailable {
-            pathField?.stringValue = entry.path
-            setStatus("Jumping…")
-            onJump?(entry.path)
-        } else {
-            let reason = entry.unavailableMessage ?? "That folder is not available."
-            setStatus("Unavailable")
-            onUnavailableRecent?(reason)
-        }
+        selectListPath(from: sender, entries: zoxideEntries, forceJump: false, unavailable: onUnavailableRecent)
+    }
+
+    @objc private func zoxideDoubleClicked(_ sender: Any?) {
+        selectListPath(from: sender, entries: zoxideEntries, forceJump: true, unavailable: onUnavailableRecent)
     }
 
     @objc private func zoxideFavorite(_ sender: Any?) {
@@ -832,24 +803,42 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 
     @objc private func favoriteClicked(_ sender: Any?) {
+        selectListPath(from: sender, entries: favoriteEntries, forceJump: false, unavailable: onUnavailableFavorite)
+    }
+
+    @objc private func favoriteDoubleClicked(_ sender: Any?) {
+        selectListPath(from: sender, entries: favoriteEntries, forceJump: true, unavailable: onUnavailableFavorite)
+    }
+
+    /// 统一列表选择：forceJump 或 jumpOnListClick 时 Jump；否则只填 Path。
+    private func selectListPath(
+        from sender: Any?,
+        entries: [some ListPathEntry],
+        forceJump: Bool,
+        unavailable: ((String) -> Void)?
+    ) {
         let index: Int?
         if let row = sender as? FolderListRowControl {
             index = row.entryIndex
-        } else if let button = sender as? NSControl {
-            index = button.tag
+        } else if let control = sender as? NSControl {
+            index = control.tag
         } else {
             index = nil
         }
-        guard let index, favoriteEntries.indices.contains(index) else { return }
-        let entry = favoriteEntries[index]
+        guard let index, entries.indices.contains(index) else { return }
+        let entry = entries[index]
         if entry.isAvailable {
             pathField?.stringValue = entry.path
-            setStatus("Jumping…")
-            onJump?(entry.path)
+            if forceJump || jumpOnListClick {
+                setStatus("Jumping…")
+                onJump?(entry.path)
+            } else {
+                setStatus("Path set")
+            }
         } else {
             let reason = entry.unavailableMessage ?? "That folder is not available."
             setStatus("Unavailable")
-            onUnavailableFavorite?(reason)
+            unavailable?(reason)
         }
     }
 
@@ -872,12 +861,26 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 }
 
+/// 列表行可选中条目的公共字段。
+private protocol ListPathEntry {
+    var path: String { get }
+    var isAvailable: Bool { get }
+    var unavailableMessage: String? { get }
+}
+
+extension RecentFolderEntry: ListPathEntry {}
+extension FavoriteFolderEntry: ListPathEntry {}
+extension FinderFolderEntry: ListPathEntry {}
+extension ZoxideFolderEntry: ListPathEntry {}
+
 // MARK: - Single-line folder row (full-hit, hover, pressed)
 
 /// 单行列表：`name · path`，无类型图标；整行 hit-test + activeAlways hover。
 private final class FolderListRowControl: NSControl {
     private(set) var entryIndex: Int = 0
     private var isAvailable = true
+    /// 双击始终 Jump；单击走 action（是否 Jump 由 jumpOnListClick 决定）
+    var doubleAction: Selector?
 
     private let titleLabel = NonInteractiveLabel(labelWithString: "")
     private let chevronLabel = NonInteractiveLabel(labelWithString: "›")
@@ -1042,7 +1045,11 @@ private final class FolderListRowControl: NSControl {
         isPressed = false
         refreshAppearance()
         if shouldFire {
-            sendAction(action, to: target)
+            if event.clickCount >= 2, let doubleAction {
+                sendAction(doubleAction, to: target)
+            } else {
+                sendAction(action, to: target)
+            }
         }
     }
 
