@@ -1,222 +1,153 @@
-# Dialog Jumper：单侧栏原理 vs 多侧栏改造会碰到什么
+# Dialog Jumper：单侧栏 vs 多侧栏（供外部讨论）
 
 Date: 2026-07-12  
-Audience: 给同事 / 外人快速讲清现状，并评估「每个 File Dialog 旁各挂一块侧栏」  
-Status: 说明文档（非实现票）
+用途：讲清产品机制，并请人帮看「多 File Dialog 时要不要每个旁边挂一块侧栏」。  
+不依赖源码；无实现细节必读。
 
 ---
 
-## 1. 产品在干什么（一句话）
+## 产品是什么
 
-菜单栏 app 发现 **系统标准 Open/Save 对话框**，在旁边挂一块 **侧栏**，让用户用 Path / 列表把对话框 **跳到某个文件夹**；**不替用户点 Open/Save**。
+macOS 菜单栏小工具：当用户打开 **系统标准的打开/存储文件对话框**（Open / Save）时，在旁边出现一块 **侧栏**，用来快速把对话框 **跳到某个文件夹**。
 
----
+- 用户仍自己点 Open / Save 确认  
+- 工具 **不会** 替用户按下 Open / Save  
+- 典型场景：在 TextEdit / 预览等 app 里选文件时，想一下跳到常用目录，而不靠对话框里慢慢点
 
-## 2. 当前实现原理（单侧栏）
+侧栏里大致有：
 
-### 2.1 进程与权限
-
-| 能力 | 用途 |
-| --- | --- |
-| **Accessibility** | 读 panel 树、走 Go to Folder、点 Path 框 |
-| **Automation（可选）** | Finder tab：用 AppleScript 读打开的 Finder 窗口路径 |
-| **本地 CLI（可选）** | Zoxide tab：`zoxide query -l` |
-
-无 Hardened Runtime 的开发签名（跨进程 AX 更省事）。  
-Jump / 检测 **只信** `AXIsProcessTrusted()`。
-
-### 2.2 检测：什么叫「有一个 File Dialog」
-
-约每 **0.5s**（及切 app 时）跑一遍：
-
-1. Accessibility 未就绪 → 不检测，侧栏拆掉  
-2. 扫 `NSWorkspace.runningApplications`，**只保留** bundle id 含  
-   `openAndSavePanelService` 的进程（系统 Open/Save 面板服务）  
-3. 该进程是否有 **屏幕上可见的大窗**（CG 或 AX；防止 Cancel 后进程还在却无面板）  
-4. AX **fingerprint 打分**（如 `OpenPanel` / `SavePanel` identifier、system dialog 等）  
-5. 宿主名从服务显示名解析：  
-   `Open and Save Panel Service (TextEdit)` → **TextEdit**  
-   （**不用**「谁是 frontmost」当宿主身份的唯一来源）
-
-**非系统 panel**（Electron 自绘、普通 alert）通常对不上 service / 指纹 → 视为无 dialog，零动作。
-
-### 2.3 多个 dialog 时：仍然只认一个
-
-候选里排序大致是：
-
-1. 优先：服务名匹配 **当前 frontmost 宿主** 的 panel  
-2. 否则：扫到的 **第一个** 合格 panel  
-3. 同一 PID 多窗：fingerprint **分最高** 的那扇  
-
-结果：全局 **`detectionState = eligible(一个 panelPID)` 或 none/paused**。
-
-### 2.4 单侧栏 UI
-
-- **一个** `NSPanel`（floating、nonactivating）  
-- 几何：读该 `panelPID` 的窗口 frame → 贴在 dialog **旁侧**  
-- 显示条件（当前策略）：  
-  - 仍 eligible，且  
-  - frontmost 是 **宿主 / panel service / Dialog Jumper 自己**  
-  - 否则 **隐藏**（切到别的 app 让路）；dialog Cancel/关 → **dismiss**  
-
-侧栏内容：
-
-| 区域 | 内容 |
-| --- | --- |
-| Path | 一个输入框 + Jump / ★ Favorite |
-| 列表 tabs | **Rec \| Fav \| Find \| Zox**（segment，整高给当前 tab） |
-| Rec | 本 app **成功 Jump** 写入，≤10 |
-| Fav | 用户钉选，显式顺序，≤40 |
-| Find | ↻ → AppleScript 枚举 Finder 窗路径，≤50 |
-| Zox | ↻ → `zoxide query -l`，≤50 |
-
-列表数据在 **AppDelegate 级单例仓库**；侧栏只是视图。
-
-### 2.5 Jump 怎么执行
-
-1. 解析 path（`~`、存在性等）  
-2. 对 **当前 eligible 的 panel PID** 发：  
-   **⇧⌘G** → 找到 Path 文本框 → **定向合成点击（该 PID）** → **Return**  
-3. 成功 → 写入 Recents；失败 → status（软失败一般不弹窗）  
-4. **从不**点 Open/Save 按钮  
-
-菜单 **Jump on List Click**：单击列表是否立刻 Jump（默认开）；**双击始终 Jump**。
-
-### 2.6 结构示意（现状）
-
-```
-[Menu bar DJ]
-     │
-     ▼
-AppDelegate ── poll / frontmost
-     │
-     ├─ FileDialogDetector ──► 0..1 EligibleFileDialog (panelPID)
-     ├─ Recents / Favorites / FinderReader / ZoxideReader  (全局)
-     └─ AttachedPathToolbarController × 1
-              │
-              ├─ Path 字符串 × 1
-              └─ Jump ──► FolderJumpExecutor(当前 panelPID)
-```
+- **路径输入** + Jump  
+- **最近用过的目录**（在本工具里成功跳转过的）  
+- **收藏夹**（用户钉的）  
+- **当前已打开的 Finder 窗口**（需系统「控制 Finder」授权，按需刷新）  
+- **zoxide 常用目录**（若本机装了 zoxide，按频次列表，按需刷新）
 
 ---
 
-## 3. 若改成「每个 dialog 旁各吸一个侧栏」
+## 现在怎么工作的（单侧栏）
 
-### 3.1 目标模型（讨论中较干净的一版）
+### 怎么知道「有对话框」
 
-| 东西 | 作用域 |
-| --- | --- |
-| Rec / Fav / Find / Zox 数据 | **仍全局一份** |
-| Jump 实现 / 权限 | 全局 |
-| 侧栏窗口（NSPanel + 几何 + 显隐） | **每个 eligible panel 一个** |
-| **Path 输入框内容** | **每个侧栏独立** |
-| 生命周期 | panel 出现 → 创建/显示侧栏；Cancel/关 → 拆对应侧栏 |
+系统标准 Open/Save 往往跑在单独的 **「打开与存储面板」服务进程** 里，而不是完全混在宿主 app 自己的普通窗口里。
 
-列表点击、★、Zox 刷新等：数据全局；**写入 Path / 发起 Jump** 时绑在 **被操作的那块侧栏** 的 `panelPID` 上。
+工具会：
 
-### 3.2 相对现状要改什么（实现面）
+1. 看辅助功能权限是否可用  
+2. 找到这类面板服务进程  
+3. 确认它有 **真正显示在屏幕上的大窗口**（避免点了取消之后进程还在、界面已经没了）  
+4. 用无障碍接口做一层「像不像系统文件对话框」的校验，减少误认别的弹窗  
+5. 从服务名称里解析宿主，例如带 `(TextEdit)` → 认为是 TextEdit 的面板  
 
-1. **Detector**  
-   - 现在：`detect → 0..1`  
-   - 改为：`detect → [EligibleFileDialog]`（去重 PID）
+应用自己画的文件选择器（很多 Electron / 自绘 UI）通常 **认不出来** → 故意不出现侧栏、也不乱操作。
 
-2. **Chrome 管理**  
-   - 现在：1 个 `AttachedPathToolbarController`  
-   - 改为：`Dictionary<pid_t, Controller>`（或等价），每轮对账：  
-     - 新 PID → create  
-     - 消失 PID → dismiss + remove  
-     - 仍在 → 更新 frame / show-hide  
+### 同时有多个对话框时
 
-3. **Jump API**  
-   - 现在：隐式「当前唯一 PID」  
-   - 必须改为：**显式 `panelPID`**（侧栏闭包捕获），否则多开时必串台  
+**仍然只服务一个。**
 
-4. **Path 状态**  
-   - 从「全局一个 pathField」→ **每个 controller 自带 path 字符串**  
+大致优先级：
 
-5. **菜单 Focus Path**  
-   - 多目标时：Focus frontmost host 对应侧栏，或菜单列出多个 host  
+- 尽量跟 **当前前台那个宿主** 的面板  
+- 跟不稳时，落到「扫到的第一个合格面板」
 
-6. **hide 策略（产品要拍板）**  
-   - A：dialog 在就显示（跟生命周期最齐，可能挡桌面）  
-   - B：仅该 host/panel 前台时显示对应侧栏（更接近现在「让路」，但是 N 份规则）  
+结果：
 
-### 3.3 会碰到的问题 / 风险
+- 全局 **只有一块侧栏**  
+- 侧栏贴在「被选中的那一个」对话框旁边  
+- Jump 也只打进那一个  
 
-| 问题 | 说明 |
-| --- | --- |
-| **Jump 串台** | 最大正确性风险。侧栏 A 必须只驱动 panel A；漏传 PID 会 Jump 到 B。 |
-| **状态对账** | 检测抖动、Cancel 时序、PID 复用，可能导致侧栏泄漏或闪烁。 |
-| **几何** | 两 Open 并排/重叠时侧栏互挡；多屏 frame 已有 residual，N 倍暴露。 |
-| **焦点 / key window** | nonactivating panel × N；「当前在改哪个 Path」要比现在清晰。 |
-| **列表操作归属** | 全局 Zox 点 ★：写入 **哪** 个 Path？应固定为「事件来源侧栏」。 |
-| **性能** | 每 PID 几何 + 可能的 orderFront；2～3 个通常可接受，很多 panel 要 cap。 |
-| **测试矩阵** | 单测好写；HITL 要「双 TextEdit Open」等场景，自动化难。 |
-| **心智** | 两块侧栏两个 Path，比单块「跟当前 dialog」多一步理解成本（有人觉得更直观，有人觉得乱）。 |
+### 侧栏何时显示 / 消失
 
-### 3.4 什么反而没那么难
+- 选中的对话框还在，且前台合理（宿主 / 面板服务 / 工具自己）→ 显示  
+- 用户切到完全无关的 app → 往往 **先藏起来**（让路）  
+- 对话框取消或关掉 → 侧栏拆掉  
 
-- Rec/Fav/Find/Zox **仓库继续单例**——不必每侧栏复制一份数据。  
-- 多开几个 `NSPanel` 本身在 AppKit 里不稀奇。  
-- 单侧栏时代已经拆好：检测 / Jump / 列表 / chrome 边界清楚，多侧栏是 **chrome 层从 1→N + Jump 带 PID**，不是推翻架构。
+### 列表数据
 
-### 3.5 工作量粗估（供讨论）
-
-| 项 | 量级 |
-| --- | --- |
-| detect 返回数组 + 单测 | 小 |
-| PID→Controller 对账 + 几何 | 中 |
-| Jump 签名带 PID + 回归 | 中（正确性关键） |
-| Path 每实例 + Focus 菜单 | 小～中 |
-| hide 策略 + 双 Open 手测 | 中 |
-| **合计** | **中等重构**，不是新项目；但比「再加一个 path 源」重一截 |
-
-### 3.6 何时值得做
-
-| 更值得 | 不太值得 |
-| --- | --- |
-| 经常 **同时** 开 ≥2 个系统 Open/Save，且都要 Jump | 几乎总是一个 dialog |
-| 单侧栏「跟错 frontmost」已经烦到你 | 只是理论洁癖 |
-| 接受维护 N 个 chrome 的测试成本 | 想尽量少 HITL |
-
-**折中（比全多侧栏便宜）**：仍单侧栏，但多候选时 **菜单/status 明确当前 host**，或 **手动选附着目标**，Jump 仍只打一个 PID。
+最近 / 收藏 / Finder / zoxide 都是 **整个 app 一份**，不是「每个对话框各抄一份」。
 
 ---
 
-## 4. 对比一览
+## 有人提议的另一种做法：多侧栏
 
-| | 现在（单侧栏） | 多侧栏（讨论模型） |
+### 想法
+
+- **每个** 仍开着的系统 Open/Save 旁边，各挂 **一块** 侧栏  
+- 对话框出现 → 侧栏出现；对话框关掉 → **只拆对应那块**  
+- 最近 / 收藏 / Finder / zoxide **继续全局共享**  
+- 只有 **路径输入框** 按侧栏分开（每个对话框各记当前要跳的路径）  
+- 在某块侧栏上点 Jump → 必须只影响 **它旁边那个** 对话框  
+
+直觉上：生命周期跟对话框走，「并排两个打开面板」时更直观，也不用猜「当前唯一侧栏到底跟的谁」。
+
+---
+
+## 两种模型对比
+
+| | 现在：单侧栏 | 多侧栏 |
 | --- | --- | --- |
-| 侧栏数量 | 1 | = eligible panel 数 |
-| 选目标 | 自动挑 1 个 PID | 每个 PID 自有侧栏 |
-| Path | 1 份 | 每侧栏 1 份 |
-| Rec/Fav/Find/Zox | 全局 | 全局（共享） |
-| Jump 绑定 | 隐式当前 PID | **显式 PID（必须）** |
-| 多 Open 并排 | 可能跟错/只服务一个 | 可并排服务；实现与测试更重 |
-| 生命周期 | 跟「被选中的」dialog | 跟 **各自** dialog |
+| 侧栏数量 | 始终 0 或 1 | = 当前标准文件对话框数量 |
+| 多个对话框 | 自动挑一个来跟 | 每个旁边都有一块 |
+| 路径输入 | 一份 | 每块侧栏一份 |
+| 最近/收藏等列表 | 全局 | 全局（可不变） |
+| Jump 目标 | 「当前跟的那一个」 | 「点的是哪块侧栏，就打哪个对话框」 |
+| 跟错对话框 | 可能（少见，但静默） | 设计上应避免，但实现错了会 Jump 错 |
+| 实现与测试 | 已做完、较简单 | 要加一层「多窗口对账」 |
 
 ---
 
-## 5. 相关代码入口（便于对照）
+## 改成多侧栏时，主要会碰到的问题
 
-| 模块 | 路径 |
-| --- | --- |
-| 检测 | `apps/DialogJumper/Sources/DialogJumperCore/FileDialogDetector.swift` |
-| Fingerprint | `…/FileDialogFingerprint.swift` |
-| Jump | `…/FolderJumpExecutor.swift` |
-| 侧栏 | `apps/DialogJumper/Sources/DialogJumper/AttachedPathToolbarController.swift` |
-| 编排 | `…/AppDelegate.swift` |
-| Finder 源 | `…/FinderWindowsReader.swift` |
-| Zoxide 源 | `…/ZoxideReader.swift` |
-| 产品说明 | 仓库根 `README.md` |
+这些是请别人拍板时最有用的点：
+
+1. **Jump 必须严格绑死「侧栏 ↔ 对话框」**  
+   否则并排两个打开面板时，点左边 Jump 却进了右边——比「只有一个侧栏偶尔跟错」更难查。
+
+2. **创建 / 销毁时机**  
+   对话框开关、取消、进程还在但窗没了，都要能对上，避免侧栏残留或闪烁。
+
+3. **显示策略仍要选一种**  
+   - 对话框在就一直显示侧栏（跟生命周期最齐，可能挡桌面）  
+   - 还是仅当该宿主在前台时显示（更干净，但规则又多一层）  
+
+4. **全局列表点一下，填谁的路径？**  
+   应规定：点的是 **哪块侧栏里的列表**，就只改 **那块** 的路径（不要改成「神秘的全局当前侧栏」）。
+
+5. **菜单里「聚焦路径框」**  
+   多个侧栏时要定义 Focus 哪一个（前台宿主对应的，或列出选项）。
+
+6. **测试**  
+   逻辑可单测；真正「两个系统打开面板并排」几乎只能人手测，回归成本高于现在。
+
+7. **性能与上限**  
+   两三个面板通常没事；若极端很多，需要上限或降级。
+
+**相对不难的部分：**  
+列表数据继续全局共享；「多开几个浮动小窗」本身不是魔法。难的是 **绑定正确 + 生命周期 + 交互规则**，不是 UI 控件数量。
 
 ---
 
-## 6. 给评审人的问题（可选）
+## 不一定上多侧栏的折中
 
-1. 多 Open 是否是你们真实高频场景？  
-2. hide：dialog 在就常显，还是仅 host 前台显示？  
-3. 能否接受先做「单侧栏 + 显式选目标」，再上 N 侧栏？  
-4. Jump 串台的测试谁来做 HITL？  
+若痛点只是「有时不知道侧栏跟的谁 / 偶发跟错」，可先考虑：
 
-（本文只陈述原理与改造面，不预设必须改多侧栏。）
+- 侧栏上更醒目地标明：**当前附着：TextEdit · 打开**  
+- 或多个候选时，让用户 **选一个附着目标**，仍保持单侧栏  
+
+成本通常低于完整多侧栏。
+
+---
+
+## 想请你帮忙看的问题
+
+1. 你们 / 你个人是否 **经常同时** 开 ≥2 个系统级打开/存储对话框，并且都要跳目录？  
+2. 若做多侧栏，更倾向：**对话框在就常显**，还是 **仅宿主前台时显示**？  
+3. 单侧栏 + 更清晰的「当前跟谁」/ 手动选择，是否已经够用？  
+4. 若有 Jump 跟错，哪种代价你更能接受：偶尔跟错一个，还是多窗复杂度换「原则上不跟错」？  
+
+---
+
+## 小结
+
+- **现在**：只认一个系统文件对话框，一块侧栏跟着它；实现简单，多对话框时靠启发式选目标，存在跟错的理论风险。  
+- **多侧栏**：每个对话框一块遥控器；列表仍可全局共享，路径框分开；更贴「跟对话框生命周期」，但 Jump 绑定与对账必须做对，测试更重。  
+- **是否值得**：取决于「双开系统文件对话框」是不是真实高频，而不是架构洁癖。
