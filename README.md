@@ -89,6 +89,7 @@ apps/DialogJumper/scripts/package-release.sh
 1. 解压后右键 app → 打开，或 `xattr -cr DialogJumper.app`
 2. 打开 **辅助功能**
 3. Find 需 **自动化 → Finder**；Zox 需本机 **zoxide**
+
 ---
 
 ## 仓库结构
