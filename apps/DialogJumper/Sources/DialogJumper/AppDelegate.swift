@@ -328,8 +328,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.item(at: MenuIndex.relaunch)?.isEnabled = !jumpReady
     }
 
-    /// 菜单栏展示宽（pt）。略大于 monospaced「DJ●」，避免裁切。
-    private static let menuBarStatusLength: CGFloat = 36
+    /// 菜单栏固定槽宽（pt）。刚够 monospaced「DJ●」，避免 idle 右侧大空。
+    private static let menuBarStatusLength: CGFloat = 28
 
     private func applyMenuBarTitle() {
         guard let button = statusItem?.button else { return }
