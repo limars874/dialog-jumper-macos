@@ -44,10 +44,13 @@ public struct FinderWindowsReader: FinderWindowsReading {
     public func listOpenFolders() -> Result<[FinderFolderEntry], FinderWindowsError> {
         // 注意：不要 `repeat with w in every Finder window`（会得到脆弱 reference，
         // target as alias 在新系统上大量失败）。用 window 索引 + 双路径 coercion。
+        // 脚本与 Swift 两侧都 cap 到 capacity。
+        let cap = Self.capacity
         let source = """
         set outText to ""
         tell application "Finder"
           set n to count of windows
+          if n > \(cap) then set n to \(cap)
           repeat with i from 1 to n
             try
               set w to window i
