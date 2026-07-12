@@ -38,6 +38,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var zoxideEntries: [ZoxideFolderEntry] = []
     private var finderDidLoadOnce = false
     private var zoxideDidLoadOnce = false
+    /// 列表区空态文案（未安装 / 空库 / 命令失败 / 未刷新）
+    private var zoxidePanelMessage = "↻ Refresh zoxide (frecency)"
     private var activeListTab: ListTab = .recents
     private let finderReader: any FinderWindowsReading
     private let zoxideReader: any ZoxideReading
@@ -351,10 +353,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             zoxideDidLoadOnce = true
             updateSegmentTitles()
             if entries.isEmpty {
+                zoxidePanelMessage = "zoxide DB empty"
                 setStatus("zoxide DB empty")
             } else if entries.count >= ZoxideReader.capacity {
+                zoxidePanelMessage = ""
                 setStatus("Zox · \(entries.count) (max)")
             } else {
+                zoxidePanelMessage = ""
                 setStatus("Zox · \(entries.count)")
             }
             if activeListTab == .zoxide {
@@ -363,6 +368,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         case .failure(.notInstalled):
             zoxideDidLoadOnce = true
             zoxideEntries = []
+            zoxidePanelMessage = "zoxide not found"
             updateSegmentTitles()
             setStatus("zoxide not found")
             if activeListTab == .zoxide {
@@ -371,8 +377,9 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         case .failure(.commandFailed(let message)):
             zoxideDidLoadOnce = true
             zoxideEntries = []
-            updateSegmentTitles()
             let short = message.count > 48 ? String(message.prefix(45)) + "…" : message
+            zoxidePanelMessage = "zoxide: \(short)"
+            updateSegmentTitles()
             setStatus("zoxide: \(short)")
             #if DEBUG
             NSLog("[DialogJumper] zoxide: %@", message)
@@ -424,17 +431,9 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
                 makeFinderRow(entry: finderEntries[index], index: index, width: width)
             }
         case .zoxide:
-            let emptyMessage: String
-            if !zoxideDidLoadOnce {
-                emptyMessage = "↻ Refresh zoxide (frecency)"
-            } else if zoxideEntries.isEmpty {
-                emptyMessage = "No zoxide paths (or not installed)"
-            } else {
-                emptyMessage = ""
-            }
             rebuildRows(
                 count: zoxideEntries.count,
-                emptyMessage: emptyMessage,
+                emptyMessage: zoxidePanelMessage,
                 document: document,
                 scroll: scroll
             ) { index, width in
