@@ -1,123 +1,125 @@
 # Dialog Jumper
 
-macOS 菜单栏工具：在**系统标准 Open / Save 对话框**里快速 **Folder Jump**，不替你点 Open/Save。
+macOS menu bar tool for **Folder Jump** inside **system Open / Save dialogs**. It never clicks Open/Save for you.
 
-侧栏附着在 File Dialog 旁，支持 Path 输入、Recents、Favorites、打开的 Finder 窗口、以及 **zoxide** 常用目录。
+A side chrome attaches next to the file dialog with Path input, Recents, Favorites, open **Finder** windows, and **zoxide** frecency paths.
 
-> Lab / 自用阶段。完整产品规格见  
+> Lab / personal-use stage. Spec (Chinese research notes):  
 > [`.scratch/macos-file-dialog-jumper/assets/mvp-spec.md`](.scratch/macos-file-dialog-jumper/assets/mvp-spec.md)
 
+**中文说明：** [README.zh-CN.md](./README.zh-CN.md)
+
 ---
 
-## 功能一览
+## Features
 
-### 核心 Jump
-- 检测 **Open and Save Panel Service** 上的标准系统面板（可见大窗 + AX fingerprint）
-- 侧栏 **Path** 输入 `/` 或 `~` 路径 → **Jump**
-- Jump 链：`⇧⌘G` → Path 框 → 定向点击 → Return  
-- **绝不**自动点击 Open / Save
-- 非法路径 / 无面板：可见失败，可重试
+### Core Jump
+- Detects standard panels via **Open and Save Panel Service** (visible large window + AX fingerprint)
+- Side chrome **Path** field (`/` or `~`) → **Jump**
+- Jump sequence: `⇧⌘G` → path field → directed click → Return  
+- **Never** auto-clicks Open / Save
+- Bad path / no panel: visible failure, retry OK
 
-### 侧栏列表（Rec | Fav | Find | Zox）
-| Tab | 来源 | 刷新 |
+### Side list (Rec | Fav | Find | Zox)
+
+| Tab | Source | Refresh |
 | --- | --- | --- |
-| **Rec** | 本 app 成功 Jump 的目录（最多 10） | 自动 |
-| **Fav** | 你钉的收藏（显式顺序，最多 40） | 自动 |
-| **Find** | 当前打开的 Finder 窗口路径（最多 50） | 点 **↻**（需 Automation） |
-| **Zox** | `zoxide query -l` frecency（最多 50） | 点 **↻**（需本机安装 zoxide） |
+| **Rec** | Folders successfully jumped in this app (max 10) | Auto |
+| **Fav** | User pins, explicit order (max 40) | Auto |
+| **Find** | Paths of open Finder windows (max 50) | **↻** (needs Automation) |
+| **Zox** | `zoxide query -l` frecency (max 50) | **↻** (needs [zoxide](https://github.com/ajeetdsouza/zoxide)) |
 
-- **单击**：填 Path；是否立刻 Jump 由菜单 **Jump on List Click** 控制（默认开）
-- **双击**：始终 Jump
-- **左侧拖柄**：拖出文件夹 URL，可拖到 Open/Save 面板上做 **系统原生导航**（与 Jump 点击区分开）
-- **★**：加入 Favorites
-- **⎘**：复制全路径  
-Favorites 行：**↑ ↓ ✕** 排序/删除
-### 菜单栏
-- **DJ** / **DJ!** / **DJ●**（固定宽度，状态切换不抖条）
-- Accessibility / Folder Jump / Last jump 状态
+- **Single-click:** fill Path; whether it also Jumps is controlled by menu **Jump on List Click** (default on)
+- **Double-click:** always Jump
+- **Left drag handle:** drag a folder file URL onto the Open/Save panel for **native navigation** (separate from Jump click)
+- **★** Favorite · **⎘** copy full path  
+- Favorites rows: **↑ ↓ ✕**
+
+### Menu bar
+- **DJ** / **DJ!** / **DJ●** (fixed width, no jitter)
+- Accessibility · Folder Jump · Last jump
 - Focus Path · **Jump on List Click** · Recheck · Open Settings · Relaunch · About · Quit
 
-### 权限与恢复
-- **Accessibility**：Jump 必需；撤销时拆侧栏、暂停 Jump、可 Recheck / 开设置
-- **Automation（Finder）**：仅 Finder tab ↻ 时需要；Info.plist 含用途说明
-- 软失败只 status；权限类可一次性 alert（无 prompt 风暴）
+### Permissions
+- **Accessibility** required for Jump; revoke dismisses chrome and pauses Jump
+- **Automation (Finder)** only for Find tab refresh
+- Soft failures → status line; no prompt storms
 
-### 明确不做（当前）
-- 全局热键（如 ⌥⌘J）— 需要 Go to Folder 用系统 **⇧⌘G**
-- Fuzzy 本机文件夹搜索 / 云同步索引
-- 代点 Open/Save、同步 Finder 边栏收藏
+### Out of scope (for now)
+- Global hotkeys (use system **⇧⌘G** for Go to Folder)
+- Fuzzy on-device folder search / cloud index
+- Submitting Open/Save for the user; syncing Finder sidebar favorites
 
 ---
 
-## 运行
+## Run (development)
 
 ```bash
 cd apps/DialogJumper
 ./scripts/run-dev-app.sh
 ```
 
-1. 系统设置 → 隐私与安全性 → **辅助功能** → 勾选 Dialog Jumper  
-2. TextEdit → **文件 → 打开…**  
-3. 菜单栏出现 **DJ●**，侧栏可用  
+1. System Settings → Privacy & Security → **Accessibility** → enable Dialog Jumper  
+2. TextEdit → **File → Open…**  
+3. Menu bar shows **DJ●** and the side chrome appears  
 
-开发签名：专用 keychain 身份 **DialogJumper Dev**，**不要** Hardened Runtime（会破坏跨进程 AX）。
+Dev signing uses a local identity (**DialogJumper Dev**). Do **not** enable Hardened Runtime (breaks cross-process AX).
 
 ```bash
 cd apps/DialogJumper && swift test && swift build
 ```
 
-## 发布（GitHub Actions）
+---
 
-推送 tag 后自动测试、release 编译、ad-hoc 签名并上传 zip：
+## Install from GitHub Release (no Developer ID)
+
+Releases are **ad-hoc signed and not notarized**. Expect Gatekeeper friction.
+
+1. Download the macOS zip from [Releases](../../releases)
+2. Unzip, then either right-click **DialogJumper.app** → Open, or `xattr -cr DialogJumper.app`
+3. Enable **Accessibility**
+4. Optional: **Automation** → Dialog Jumper controlling **Finder** (Find tab)
+5. Optional: install **zoxide** (Zox tab)
+
+---
+
+## Publish (GitHub Actions)
+
+Push a version tag:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-也可在 Actions 里手动 **workflow_dispatch**（draft release）。
+Or run the **Release** workflow manually (`workflow_dispatch` → draft release).
 
-本地打 zip：
+Local package:
 
 ```bash
 apps/DialogJumper/scripts/package-release.sh
 # → apps/DialogJumper/dist/DialogJumper-*-macos-*.zip
 ```
 
-**无 Apple Developer ID、未公证。** 别人安装：
-
-1. 解压后右键 app → 打开，或 `xattr -cr DialogJumper.app`
-2. 打开 **辅助功能**
-3. Find 需 **自动化 → Finder**；Zox 需本机 **zoxide**
-
 ---
 
-## 仓库结构
+## Layout
 
-| 路径 | 内容 |
+| Path | Contents |
 | --- | --- |
-| `apps/DialogJumper/` | SwiftPM 产品代码 + `scripts/run-dev-app.sh` |
-| `docs/` | progress / constraints / journal / context |
-| `.scratch/macos-file-dialog-jumper/` | 研究 map、spec、support matrix |
-| `.scratch/dialog-jumper-mvp/` | 实现票与验收 pack |
+| `apps/DialogJumper/` | SwiftPM app + scripts |
+| `docs/` | progress / constraints / journal |
+| `.scratch/` | research / MVP tickets (optional local) |
 
-验收包（lab PASS vs 仍 REQ）：  
-[`.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`](.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md)
+License: [MIT](./LICENSE)
 
 ---
 
-## 依赖（可选）
+## Requirements
 
-| 依赖 | 用途 |
+| Need | For |
 | --- | --- |
-| 无（仅 AX） | Path / Recents / Favorites Jump |
-| **Finder Automation** | Find tab |
-| **[zoxide](https://github.com/ajeetdsouza/zoxide)** 在 PATH/Homebrew | Zox tab |
-
----
-
-## 实现票状态
-
-- **01–06 / 08 / 09** done  
-- **07** cancelled（无全局 shortcut）  
-- 之后：列表 UI、Finder/Zoxide 源、Jump on List Click 等 polish 已合入 `main`
+| macOS 14+ | App |
+| Accessibility | Jump |
+| Finder Automation | Find tab |
+| [zoxide](https://github.com/ajeetdsouza/zoxide) | Zox tab |
