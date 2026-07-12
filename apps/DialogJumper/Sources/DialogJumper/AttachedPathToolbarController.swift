@@ -15,25 +15,27 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     var onMoveFavoriteUp: ((String) -> Void)?
     var onMoveFavoriteDown: ((String) -> Void)?
 
+    private enum ListTab: Int {
+        case recents = 0
+        case favorites = 1
+    }
+
     private var panel: NSPanel?
     private var pathField: NSTextField?
     private var statusLabel: NSTextField?
-    private var recentsHeaderLabel: NSTextField?
-    private var favoritesHeaderLabel: NSTextField?
-    private var recentsScroll: NSScrollView?
-    private var favoritesScroll: NSScrollView?
-    private var recentsDocument: NSView?
-    private var favoritesDocument: NSView?
-    private var emptyRecentsLabel: NSTextField?
-    private var emptyFavoritesLabel: NSTextField?
+    private var listSegment: NSSegmentedControl?
+    private var listScroll: NSScrollView?
+    private var listDocument: NSView?
+    private var emptyListLabel: NSTextField?
     private var addFavoriteButton: NSButton?
     private var attachedPID: pid_t?
     private var recentEntries: [RecentFolderEntry] = []
     private var favoriteEntries: [FavoriteFolderEntry] = []
+    private var activeListTab: ListTab = .recents
 
-    private let chromeSize = CGSize(width: 300, height: 460)
-    private let rowHeight: CGFloat = 44
-    private let favoriteManageWidth: CGFloat = 54
+    private let chromeSize = CGSize(width: 300, height: 420)
+    private let rowHeight: CGFloat = 30
+    private let favoriteManageWidth: CGFloat = 52
 
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
         guard case .eligible(let dialog) = detection else {
@@ -69,13 +71,19 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     /// Refresh Recents rows (call after successful jump / on show).
     func setRecents(_ entries: [RecentFolderEntry]) {
         recentEntries = entries
-        rebuildRecentsRows()
+        updateSegmentTitles()
+        if activeListTab == .recents {
+            rebuildActiveList()
+        }
     }
 
     /// Refresh Favorites rows (call after manage / on show).
     func setFavorites(_ entries: [FavoriteFolderEntry]) {
         favoriteEntries = entries
-        rebuildFavoritesRows()
+        updateSegmentTitles()
+        if activeListTab == .favorites {
+            rebuildActiveList()
+        }
     }
 
     func focusPathField() {
@@ -145,7 +153,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let w = chromeSize.width
         let h = chromeSize.height
 
-        // 顶区：短状态 + Path + 按钮（无内容总标题，窗标题 Dialog Jumper 已够）
+        // 顶区：短状态 + Path + 按钮
         let status = makeLabel("", bold: false, size: 10)
         status.textColor = .secondaryLabelColor
         status.frame = NSRect(x: 12, y: h - 22, width: w - 24, height: 14)
@@ -175,130 +183,101 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         add.action = #selector(addFavoriteFromField)
         add.toolTip = "Add path field folder to Favorites"
         addFavoriteButton = add
+        // 列表：Recents | Favorites 切换，整段高度给当前列表
+        let segment = NSSegmentedControl()
+        segment.segmentCount = 2
+        segment.setLabel("Recents", forSegment: ListTab.recents.rawValue)
+        segment.setLabel("Favorites", forSegment: ListTab.favorites.rawValue)
+        segment.trackingMode = .selectOne
+        segment.segmentStyle = .rounded
+        segment.target = self
+        segment.action = #selector(listTabChanged(_:))
+        segment.selectedSegment = ListTab.recents.rawValue
+        segment.frame = NSRect(x: 12, y: h - 124, width: w - 24, height: 24)
+        listSegment = segment
 
-        // 列表区：Recents 上半、Favorites 下半（固定分区，避免抢高度）
-        let listTop = h - 112
+        let empty = makeLabel("Jump once to fill Recents", bold: false, size: 11)
+        empty.textColor = .tertiaryLabelColor
+        empty.alignment = .center
+        empty.frame = NSRect(x: 12, y: 40, width: w - 24, height: 18)
+        emptyListLabel = empty
+
+        let doc = NSView(frame: NSRect(x: 0, y: 0, width: w - 16, height: 1))
+        listDocument = doc
+
         let listBottom: CGFloat = 12
-        let listHeight = listTop - listBottom
-        let half = floor(listHeight / 2)
-        let recentsBlockTop = listTop
-        let favoritesBlockTop = listBottom + half
-
-        let recentsHeader = makeLabel("Recents", bold: true, size: 11)
-        recentsHeader.frame = NSRect(x: 12, y: recentsBlockTop - 16, width: w - 24, height: 16)
-        recentsHeaderLabel = recentsHeader
-
-        let emptyRecents = makeLabel("Jump once to fill Recents", bold: false, size: 10)
-        emptyRecents.textColor = .tertiaryLabelColor
-        emptyRecents.frame = NSRect(x: 12, y: recentsBlockTop - 40, width: w - 24, height: 16)
-        emptyRecentsLabel = emptyRecents
-
-        let recentsDoc = NSView(frame: NSRect(x: 0, y: 0, width: w - 16, height: 1))
-        recentsDocument = recentsDoc
-
-        let recentsScrollHeight = max(40, half - 24)
-        let recentsScrollView = NSScrollView(
-            frame: NSRect(x: 8, y: favoritesBlockTop + 4, width: w - 16, height: recentsScrollHeight)
-        )
-        recentsScrollView.hasVerticalScroller = true
-        recentsScrollView.hasHorizontalScroller = false
-        recentsScrollView.autohidesScrollers = true
-        recentsScrollView.borderType = .noBorder
-        recentsScrollView.drawsBackground = false
-        recentsScrollView.documentView = recentsDoc
-        recentsScroll = recentsScrollView
-
-        let favoritesHeader = makeLabel("Favorites", bold: true, size: 11)
-        favoritesHeader.frame = NSRect(x: 12, y: favoritesBlockTop - 16, width: w - 24, height: 16)
-        favoritesHeaderLabel = favoritesHeader
-
-        let emptyFavorites = makeLabel("★ Favorite pins a path here", bold: false, size: 10)
-        emptyFavorites.textColor = .tertiaryLabelColor
-        emptyFavorites.frame = NSRect(x: 12, y: favoritesBlockTop - 40, width: w - 24, height: 16)
-        emptyFavoritesLabel = emptyFavorites
-
-        let favoritesDoc = NSView(frame: NSRect(x: 0, y: 0, width: w - 16, height: 1))
-        favoritesDocument = favoritesDoc
-
-        let favoritesScrollHeight = max(40, half - 24)
-        let favoritesScrollView = NSScrollView(
-            frame: NSRect(x: 8, y: listBottom, width: w - 16, height: favoritesScrollHeight)
-        )
-        favoritesScrollView.hasVerticalScroller = true
-        favoritesScrollView.hasHorizontalScroller = false
-        favoritesScrollView.autohidesScrollers = true
-        favoritesScrollView.borderType = .noBorder
-        favoritesScrollView.drawsBackground = false
-        favoritesScrollView.documentView = favoritesDoc
-        favoritesScroll = favoritesScrollView
+        let listTop = h - 136
+        let scroll = NSScrollView(frame: NSRect(x: 8, y: listBottom, width: w - 16, height: listTop - listBottom))
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.borderType = .noBorder
+        scroll.drawsBackground = false
+        scroll.documentView = doc
+        listScroll = scroll
 
         root.addSubview(status)
         root.addSubview(field)
         root.addSubview(jump)
         root.addSubview(add)
-        root.addSubview(recentsHeader)
-        root.addSubview(emptyRecents)
-        root.addSubview(recentsScrollView)
-        root.addSubview(favoritesHeader)
-        root.addSubview(emptyFavorites)
-        root.addSubview(favoritesScrollView)
+        root.addSubview(segment)
+        root.addSubview(empty)
+        root.addSubview(scroll)
 
         self.panel = panel
-        rebuildRecentsRows()
-        rebuildFavoritesRows()
+        updateSegmentTitles()
+        rebuildActiveList()
         return panel
     }
 
-    private func rebuildRecentsRows() {
-        guard let document = recentsDocument, let scroll = recentsScroll else { return }
+    private func updateSegmentTitles() {
+        guard let segment = listSegment else { return }
+        segment.setLabel("Recents (\(recentEntries.count))", forSegment: ListTab.recents.rawValue)
+        segment.setLabel("Favorites (\(favoriteEntries.count))", forSegment: ListTab.favorites.rawValue)
+    }
+
+    @objc private func listTabChanged(_ sender: NSSegmentedControl) {
+        activeListTab = ListTab(rawValue: sender.selectedSegment) ?? .recents
+        rebuildActiveList()
+    }
+
+    private func rebuildActiveList() {
+        guard let document = listDocument, let scroll = listScroll else { return }
         document.subviews.forEach { $0.removeFromSuperview() }
 
-        let empty = recentEntries.isEmpty
-        emptyRecentsLabel?.isHidden = !empty
-        scroll.isHidden = empty
-        if empty {
-            recentsHeaderLabel?.stringValue = "Recents"
-            emptyRecentsLabel?.stringValue = "Jump once to fill Recents"
-        } else {
-            recentsHeaderLabel?.stringValue = "Recents (\(recentEntries.count))"
-        }
-
-        guard !empty else {
-            document.frame = NSRect(x: 0, y: 0, width: scroll.contentSize.width, height: 1)
-            return
-        }
-
-        let rowWidth = max(scroll.contentSize.width, chromeSize.width - 16)
-        let totalHeight = CGFloat(recentEntries.count) * rowHeight
-        // Cocoa scroll document: origin at bottom-left；行自上而下排布
-        document.frame = NSRect(x: 0, y: 0, width: rowWidth, height: max(totalHeight, scroll.contentSize.height))
-
-        for (index, entry) in recentEntries.enumerated() {
-            let yFromTop = CGFloat(index) * rowHeight
-            let y = document.frame.height - yFromTop - rowHeight
-            let row = makeRecentRow(entry: entry, index: index, width: rowWidth)
-            row.frame = NSRect(x: 0, y: y, width: rowWidth, height: rowHeight)
-            document.addSubview(row)
-        }
-
-        if totalHeight > scroll.contentSize.height {
-            document.scroll(NSPoint(x: 0, y: document.frame.height))
+        switch activeListTab {
+        case .recents:
+            rebuildRows(
+                count: recentEntries.count,
+                emptyMessage: "Jump once to fill Recents",
+                document: document,
+                scroll: scroll
+            ) { index, width in
+                makeRecentRow(entry: recentEntries[index], index: index, width: width)
+            }
+        case .favorites:
+            rebuildRows(
+                count: favoriteEntries.count,
+                emptyMessage: "★ Favorite pins a path here",
+                document: document,
+                scroll: scroll
+            ) { index, width in
+                makeFavoriteRow(entry: favoriteEntries[index], index: index, width: width)
+            }
         }
     }
 
-    private func rebuildFavoritesRows() {
-        guard let document = favoritesDocument, let scroll = favoritesScroll else { return }
-        document.subviews.forEach { $0.removeFromSuperview() }
-
-        let empty = favoriteEntries.isEmpty
-        emptyFavoritesLabel?.isHidden = !empty
+    private func rebuildRows(
+        count: Int,
+        emptyMessage: String,
+        document: NSView,
+        scroll: NSScrollView,
+        makeRow: (Int, CGFloat) -> NSView
+    ) {
+        let empty = count == 0
+        emptyListLabel?.stringValue = emptyMessage
+        emptyListLabel?.isHidden = !empty
         scroll.isHidden = empty
-        if empty {
-            favoritesHeaderLabel?.stringValue = "Favorites"
-            emptyFavoritesLabel?.stringValue = "★ Favorite pins a path here"
-        } else {
-            favoritesHeaderLabel?.stringValue = "Favorites (\(favoriteEntries.count))"
-        }
 
         guard !empty else {
             document.frame = NSRect(x: 0, y: 0, width: scroll.contentSize.width, height: 1)
@@ -306,13 +285,14 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         }
 
         let rowWidth = max(scroll.contentSize.width, chromeSize.width - 16)
-        let totalHeight = CGFloat(favoriteEntries.count) * rowHeight
+        let totalHeight = CGFloat(count) * rowHeight
+        // Cocoa scroll document: origin at bottom-left；行自上而下排布
         document.frame = NSRect(x: 0, y: 0, width: rowWidth, height: max(totalHeight, scroll.contentSize.height))
 
-        for (index, entry) in favoriteEntries.enumerated() {
+        for index in 0..<count {
             let yFromTop = CGFloat(index) * rowHeight
             let y = document.frame.height - yFromTop - rowHeight
-            let row = makeFavoriteRow(entry: entry, index: index, width: rowWidth)
+            let row = makeRow(index, rowWidth)
             row.frame = NSRect(x: 0, y: y, width: rowWidth, height: rowHeight)
             document.addSubview(row)
         }
@@ -357,25 +337,24 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
-        // 管理钮是独立 sibling，不叠在 label 下；整行 jump 区仍 full-hit
-        let manageX = jumpWidth + 2
+        // 单行：↑ ↓ ✕ 横排靠右
         let btnW: CGFloat = 16
         let btnH: CGFloat = 16
-        let stackX = manageX
-        let midY = rowHeight / 2
+        let midY = (rowHeight - btnH) / 2
+        let stackX = jumpWidth + 2
 
         let up = makeTinyButton(title: "↑", tag: index, action: #selector(favoriteMoveUp(_:)))
-        up.frame = NSRect(x: stackX, y: midY + 2, width: btnW, height: btnH)
+        up.frame = NSRect(x: stackX, y: midY, width: btnW, height: btnH)
         up.toolTip = "Move up"
         up.isEnabled = index > 0
 
         let down = makeTinyButton(title: "↓", tag: index, action: #selector(favoriteMoveDown(_:)))
-        down.frame = NSRect(x: stackX + 18, y: midY + 2, width: btnW, height: btnH)
+        down.frame = NSRect(x: stackX + 17, y: midY, width: btnW, height: btnH)
         down.toolTip = "Move down"
         down.isEnabled = index < favoriteEntries.count - 1
 
         let remove = makeTinyButton(title: "✕", tag: index, action: #selector(favoriteRemove(_:)))
-        remove.frame = NSRect(x: stackX + 9, y: midY - 16, width: btnW, height: btnH)
+        remove.frame = NSRect(x: stackX + 34, y: midY, width: btnW, height: btnH)
         remove.toolTip = "Remove favorite"
 
         container.addSubview(up)
@@ -428,7 +407,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         guard let index, recentEntries.indices.contains(index) else { return }
         let entry = recentEntries[index]
         if entry.isAvailable {
-            // 回填 path 字段，便于用户看到目标
             pathField?.stringValue = entry.path
             setStatus("Jumping…")
             onJump?(entry.path)
@@ -480,16 +458,14 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 }
 
-// MARK: - Folder list row (full-hit, hover, pressed)
+// MARK: - Single-line folder row (full-hit, hover, pressed)
 
-/// 整行可点的列表行（Recents / Favorites jump 区）：自绘 hover/pressed，子 label 不抢 hit-test。
+/// 单行列表：`name · path`，无类型图标；整行 hit-test + activeAlways hover。
 private final class FolderListRowControl: NSControl {
     private(set) var entryIndex: Int = 0
     private var isAvailable = true
 
-    private let iconView = NSImageView()
-    private let nameLabel = NonInteractiveLabel(labelWithString: "")
-    private let pathLabel = NonInteractiveLabel(labelWithString: "")
+    private let titleLabel = NonInteractiveLabel(labelWithString: "")
     private let chevronLabel = NonInteractiveLabel(labelWithString: "›")
 
     private var trackingArea: NSTrackingArea?
@@ -501,24 +477,14 @@ private final class FolderListRowControl: NSControl {
         focusRingType = .none
         configureLayerChrome()
 
-        iconView.imageScaling = .scaleProportionallyDown
-        iconView.imageAlignment = .alignCenter
-        iconView.contentTintColor = .secondaryLabelColor
+        titleLabel.lineBreakMode = .byTruncatingMiddle
+        titleLabel.allowsDefaultTighteningForTruncation = true
 
-        nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        nameLabel.lineBreakMode = .byTruncatingTail
-
-        pathLabel.font = .systemFont(ofSize: 10)
-        pathLabel.textColor = .tertiaryLabelColor
-        pathLabel.lineBreakMode = .byTruncatingMiddle
-
-        chevronLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        chevronLabel.font = .systemFont(ofSize: 13, weight: .semibold)
         chevronLabel.textColor = .tertiaryLabelColor
         chevronLabel.alignment = .center
 
-        addSubview(iconView)
-        addSubview(nameLabel)
-        addSubview(pathLabel)
+        addSubview(titleLabel)
         addSubview(chevronLabel)
     }
 
@@ -538,55 +504,57 @@ private final class FolderListRowControl: NSControl {
         tag = index
         self.isAvailable = isAvailable
 
-        nameLabel.stringValue = isAvailable
-            ? displayName
-            : "\(displayName) · unavailable"
-        nameLabel.textColor = isAvailable ? .labelColor : .secondaryLabelColor
-        pathLabel.stringValue = path
+        let nameColor: NSColor = isAvailable ? .labelColor : .secondaryLabelColor
+        let pathColor: NSColor = isAvailable ? .tertiaryLabelColor : .quaternaryLabelColor
+        let nameText = isAvailable ? displayName : "\(displayName) · unavailable"
+        let shortPath = Self.displayPath(path)
 
-        let symbolName = isAvailable ? "folder.fill" : "folder.badge.questionmark"
-        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
-        iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
-            .withSymbolConfiguration(config)
-        iconView.contentTintColor = isAvailable ? .controlAccentColor : .tertiaryLabelColor
+        let attributed = NSMutableAttributedString()
+        attributed.append(NSAttributedString(
+            string: nameText,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
+                .foregroundColor: nameColor
+            ]
+        ))
+        if !shortPath.isEmpty {
+            attributed.append(NSAttributedString(
+                string: "  \(shortPath)",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11),
+                    .foregroundColor: pathColor
+                ]
+            ))
+        }
+        titleLabel.attributedStringValue = attributed
+        toolTip = isAvailable ? path : (unavailableMessage ?? path)
         chevronLabel.isHidden = !isAvailable
-        toolTip = isAvailable
-            ? "Jump to \(path)"
-            : (unavailableMessage ?? "Folder unavailable")
-
         needsLayout = true
         refreshAppearance()
     }
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        // init 时 layer 可能还是 nil；入窗后再绑一次圆角/背景
-        configureLayerChrome()
-        refreshAppearance()
+    /// 家目录压成 ~，中间截断留给 layout。
+    private static func displayPath(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path == home { return "~" }
+        if path.hasPrefix(home + "/") {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
     }
 
     override func layout() {
         super.layout()
-        let bounds = bounds.insetBy(dx: 4, dy: 2)
-        let iconSide: CGFloat = 18
-        let chevronW: CGFloat = isAvailable ? 14 : 0
-        let textX = bounds.minX + iconSide + 8
-        let textW = max(0, bounds.width - iconSide - 8 - chevronW - 4)
-
-        iconView.frame = NSRect(
-            x: bounds.minX,
-            y: bounds.midY - iconSide / 2,
-            width: iconSide,
-            height: iconSide
-        )
-        nameLabel.frame = NSRect(x: textX, y: bounds.midY + 1, width: textW, height: 16)
-        pathLabel.frame = NSRect(x: textX, y: bounds.midY - 15, width: textW, height: 14)
+        let bounds = bounds.insetBy(dx: 6, dy: 0)
+        let chevronW: CGFloat = isAvailable ? 12 : 0
+        let textW = max(0, bounds.width - chevronW - 4)
+        titleLabel.frame = NSRect(x: bounds.minX, y: bounds.midY - 8, width: textW, height: 16)
         if isAvailable {
             chevronLabel.frame = NSRect(
                 x: bounds.maxX - chevronW,
-                y: bounds.midY - 10,
+                y: bounds.midY - 8,
                 width: chevronW,
-                height: 20
+                height: 16
             )
         }
     }
@@ -598,8 +566,7 @@ private final class FolderListRowControl: NSControl {
         }
         let area = NSTrackingArea(
             rect: bounds,
-            // toolbar 附着时前台往往是 TextEdit/panel service，DJ 非 active
-            // 必须用 activeAlways，否则 hover/手型全灭
+            // 侧栏附着时前台常是宿主，必须 activeAlways
             options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect, .cursorUpdate],
             owner: self,
             userInfo: nil
@@ -608,7 +575,6 @@ private final class FolderListRowControl: NSControl {
         addTrackingArea(area)
     }
 
-    /// 整行吞掉 hit-test，避免子 label 挡住点击。
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard !isHidden, alphaValue > 0.01 else { return nil }
         let local = convert(point, from: superview)
@@ -655,10 +621,16 @@ private final class FolderListRowControl: NSControl {
         }
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        configureLayerChrome()
+        refreshAppearance()
+    }
+
     private func configureLayerChrome() {
         wantsLayer = true
         guard let layer else { return }
-        layer.cornerRadius = 8
+        layer.cornerRadius = 6
         layer.masksToBounds = true
     }
 
@@ -675,7 +647,6 @@ private final class FolderListRowControl: NSControl {
             fill = .clear
             chevronLabel.textColor = .tertiaryLabelColor
         }
-        // 动态色需在当前 appearance 下取 cgColor，否则可能是错色/透明
         effectiveAppearance.performAsCurrentDrawingAppearance {
             self.layer?.backgroundColor = fill.cgColor
         }
