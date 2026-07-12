@@ -129,3 +129,8 @@
 - **Did**: Owner 确认侧栏顶栏 polish 可用；收尾 progress。实现队列空；无 open implementation 票。
 - **Decided**: 本轮交付以 lab 可用 MVP 为准；matrix greening / 多 OS 宣称不在本轮。
 - **Refs**: `docs/progress.md`, commits through `55cba2a`
+
+## [2026-07-12] Learnings cleanup after constraints graduation
+- **Did**: 按更新后的 flow-reflect：已毕业进 `constraints.md` 的 6 条从 `learnings.md` 删除；constraints Evidence 去掉指向 learnings 的死链；Process 约束写明「毕业后从 learnings 删除」。
+- **Kept in learnings**: hashline edit 习惯、⌥Space shortcut 冲突、cancel 决策禁止 draft 关票（未毕业）。
+- **Refs**: `docs/learnings.md`, `docs/constraints.md`, skill `flow-reflect` step 4
