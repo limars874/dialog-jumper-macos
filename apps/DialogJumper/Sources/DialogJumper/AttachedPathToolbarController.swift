@@ -340,7 +340,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         star.toolTip = "Add to Favorites"
 
         let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(recentCopyPath(_:)))
-        copy.font = .systemFont(ofSize: 14, weight: .semibold)
+        copy.glyphFontSize = 14
         copy.frame = NSRect(
             x: stackX + starW + 4,
             y: (rowHeight - copyH) / 2,
@@ -400,16 +400,12 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         return container
     }
 
-    private func makeTinyButton(title: String, tag: Int, action: Selector) -> NSButton {
-        let button = NSButton(frame: .zero)
-        button.title = title
-        button.bezelStyle = .inline
-        button.isBordered = false
-        button.font = .systemFont(ofSize: 11, weight: .semibold)
+    private func makeTinyButton(title: String, tag: Int, action: Selector) -> TinyActionButton {
+        let button = TinyActionButton(frame: .zero)
+        button.glyph = title
         button.tag = tag
         button.target = self
         button.action = action
-        button.focusRingType = .none
         return button
     }
 
@@ -454,16 +450,16 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         }
     }
 
-    @objc private func recentFavorite(_ sender: NSButton) {
-        let index = sender.tag
+    @objc private func recentFavorite(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
         guard recentEntries.indices.contains(index) else { return }
         let path = recentEntries[index].path
         pathField?.stringValue = path
         onAddFavoriteFromPath?(path)
     }
 
-    @objc private func recentCopyPath(_ sender: NSButton) {
-        let index = sender.tag
+    @objc private func recentCopyPath(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
         guard recentEntries.indices.contains(index) else { return }
         let path = recentEntries[index].path
         NSPasteboard.general.clearContents()
@@ -493,20 +489,20 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         }
     }
 
-    @objc private func favoriteMoveUp(_ sender: NSButton) {
-        let index = sender.tag
+    @objc private func favoriteMoveUp(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
         guard favoriteEntries.indices.contains(index) else { return }
         onMoveFavoriteUp?(favoriteEntries[index].path)
     }
 
-    @objc private func favoriteMoveDown(_ sender: NSButton) {
-        let index = sender.tag
+    @objc private func favoriteMoveDown(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
         guard favoriteEntries.indices.contains(index) else { return }
         onMoveFavoriteDown?(favoriteEntries[index].path)
     }
 
-    @objc private func favoriteRemove(_ sender: NSButton) {
-        let index = sender.tag
+    @objc private func favoriteRemove(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
         guard favoriteEntries.indices.contains(index) else { return }
         onRemoveFavorite?(favoriteEntries[index].path)
     }
@@ -704,6 +700,152 @@ private final class FolderListRowControl: NSControl {
         effectiveAppearance.performAsCurrentDrawingAppearance {
             self.layer?.backgroundColor = fill.cgColor
         }
+    }
+}
+
+// MARK: - Tiny action button (★ ⎘ ↑ ↓ ✕)
+
+/// 列表行旁小操作钮：activeAlways hover / 按下底色 + 手型。
+private final class TinyActionButton: NSControl {
+    var glyph: String = "" {
+        didSet { needsDisplay = true }
+    }
+    var glyphFontSize: CGFloat = 11 {
+        didSet { needsDisplay = true }
+    }
+
+    private var trackingArea: NSTrackingArea?
+    private var isHovered = false
+    private var isPressed = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        focusRingType = .none
+        wantsLayer = true
+        layer?.cornerRadius = 4
+        layer?.masksToBounds = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var isEnabled: Bool {
+        didSet {
+            alphaValue = isEnabled ? 1 : 0.35
+            if !isEnabled {
+                isHovered = false
+                isPressed = false
+            }
+            refreshAppearance()
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect, .cursorUpdate],
+            owner: self,
+            userInfo: nil
+        )
+        trackingArea = area
+        addTrackingArea(area)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !isHidden, isEnabled, alphaValue > 0.01 else { return nil }
+        let local = convert(point, from: superview)
+        return bounds.contains(local) ? self : nil
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard isEnabled else { return }
+        isHovered = true
+        refreshAppearance()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
+        isPressed = false
+        refreshAppearance()
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        (isEnabled ? NSCursor.pointingHand : NSCursor.arrow).set()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        isPressed = true
+        refreshAppearance()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard isEnabled else { return }
+        let local = convert(event.locationInWindow, from: nil)
+        let inside = bounds.contains(local)
+        if isPressed != inside {
+            isPressed = inside
+            refreshAppearance()
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard isEnabled else { return }
+        let local = convert(event.locationInWindow, from: nil)
+        let shouldFire = isPressed && bounds.contains(local)
+        isPressed = false
+        refreshAppearance()
+        if shouldFire {
+            sendAction(action, to: target)
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        let font = NSFont.systemFont(ofSize: glyphFontSize, weight: .semibold)
+        let color: NSColor = isPressed
+            ? .controlAccentColor
+            : (isHovered ? .labelColor : .secondaryLabelColor)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: color
+        ]
+        let size = (glyph as NSString).size(withAttributes: attrs)
+        let origin = NSPoint(
+            x: (bounds.width - size.width) / 2,
+            y: (bounds.height - size.height) / 2
+        )
+        (glyph as NSString).draw(at: origin, withAttributes: attrs)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refreshAppearance()
+    }
+
+    private func refreshAppearance() {
+        wantsLayer = true
+        layer?.cornerRadius = 4
+        let fill: NSColor
+        if !isEnabled {
+            fill = .clear
+        } else if isPressed {
+            fill = NSColor.controlAccentColor.withAlphaComponent(0.28)
+        } else if isHovered {
+            fill = NSColor.controlAccentColor.withAlphaComponent(0.16)
+        } else {
+            fill = .clear
+        }
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            self.layer?.backgroundColor = fill.cgColor
+        }
+        needsDisplay = true
     }
 }
 
