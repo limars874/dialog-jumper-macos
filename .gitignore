@@ -8,3 +8,11 @@
 DerivedData/
 
 # Scratch / local agent state may be large; track selectively if needed
+
+# Local code-signing secrets (never commit)
+.dialog-jumper-dev-signing/
+**/.dialog-jumper-dev-signing/
+
+# Built app bundle (rebuilt by scripts)
+apps/DialogJumper/dist/
+apps/DialogJumper/.signing/
