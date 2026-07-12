@@ -19,6 +19,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         case recents = 0
         case favorites = 1
         case finder = 2
+        case zoxide = 3
     }
 
     private var panel: NSPanel?
@@ -29,22 +30,29 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var listDocument: NSView?
     private var emptyListLabel: NSTextField?
     private var addFavoriteButton: NSButton?
-    private var refreshFinderButton: TinyActionButton?
+    private var refreshDynamicButton: TinyActionButton?
     private var attachedPID: pid_t?
     private var recentEntries: [RecentFolderEntry] = []
     private var favoriteEntries: [FavoriteFolderEntry] = []
     private var finderEntries: [FinderFolderEntry] = []
+    private var zoxideEntries: [ZoxideFolderEntry] = []
     private var finderDidLoadOnce = false
+    private var zoxideDidLoadOnce = false
     private var activeListTab: ListTab = .recents
     private let finderReader: any FinderWindowsReading
+    private let zoxideReader: any ZoxideReading
 
     private let chromeSize = CGSize(width: 300, height: 420)
     private let rowHeight: CGFloat = 30
     private let favoriteManageWidth: CGFloat = 52
     private let recentManageWidth: CGFloat = 46
 
-    init(finderReader: any FinderWindowsReading = FinderWindowsReader()) {
+    init(
+        finderReader: any FinderWindowsReading = FinderWindowsReader(),
+        zoxideReader: any ZoxideReading = ZoxideReader()
+    ) {
         self.finderReader = finderReader
+        self.zoxideReader = zoxideReader
         super.init()
     }
 
@@ -195,12 +203,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         add.toolTip = "Add path field folder to Favorites"
         addFavoriteButton = add
 
-        // 列表：Recent | Favs | Finder + 刷新（仅 Finder tab 用）
+        // 列表：Rec | Fav | Find | Zox + ↻（Finder / Zoxide）
         let segment = NSSegmentedControl()
-        segment.segmentCount = 3
-        segment.setLabel("Recent", forSegment: ListTab.recents.rawValue)
-        segment.setLabel("Favs", forSegment: ListTab.favorites.rawValue)
-        segment.setLabel("Finder", forSegment: ListTab.finder.rawValue)
+        segment.segmentCount = 4
+        segment.setLabel("Rec", forSegment: ListTab.recents.rawValue)
+        segment.setLabel("Fav", forSegment: ListTab.favorites.rawValue)
+        segment.setLabel("Find", forSegment: ListTab.finder.rawValue)
+        segment.setLabel("Zox", forSegment: ListTab.zoxide.rawValue)
         segment.trackingMode = .selectOne
         segment.segmentStyle = .rounded
         segment.target = self
@@ -212,11 +221,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 124, width: 26, height: 24))
         refresh.glyph = "↻"
         refresh.glyphFontSize = 14
-        refresh.toolTip = "Refresh Finder windows"
+        refresh.toolTip = "Refresh"
         refresh.target = self
-        refresh.action = #selector(refreshFinderList)
+        refresh.action = #selector(refreshDynamicList)
         refresh.isHidden = true
-        refreshFinderButton = refresh
+        refreshDynamicButton = refresh
 
         let empty = makeLabel("Jump once to fill Recents", bold: false, size: 11)
         empty.textColor = .tertiaryLabelColor
@@ -256,14 +265,25 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
     private func updateSegmentTitles() {
         guard let segment = listSegment else { return }
-        segment.setLabel("Recent (\(recentEntries.count))", forSegment: ListTab.recents.rawValue)
-        segment.setLabel("Favs (\(favoriteEntries.count))", forSegment: ListTab.favorites.rawValue)
-        let finderLabel = finderDidLoadOnce ? "Finder (\(finderEntries.count))" : "Finder"
+        segment.setLabel("Rec(\(recentEntries.count))", forSegment: ListTab.recents.rawValue)
+        segment.setLabel("Fav(\(favoriteEntries.count))", forSegment: ListTab.favorites.rawValue)
+        let finderLabel = finderDidLoadOnce ? "Find(\(finderEntries.count))" : "Find"
         segment.setLabel(finderLabel, forSegment: ListTab.finder.rawValue)
+        let zoxLabel = zoxideDidLoadOnce ? "Zox(\(zoxideEntries.count))" : "Zox"
+        segment.setLabel(zoxLabel, forSegment: ListTab.zoxide.rawValue)
     }
 
     private func updateRefreshButtonVisibility() {
-        refreshFinderButton?.isHidden = activeListTab != .finder
+        let needsRefresh = activeListTab == .finder || activeListTab == .zoxide
+        refreshDynamicButton?.isHidden = !needsRefresh
+        switch activeListTab {
+        case .finder:
+            refreshDynamicButton?.toolTip = "Refresh Finder windows"
+        case .zoxide:
+            refreshDynamicButton?.toolTip = "Refresh zoxide list"
+        default:
+            break
+        }
     }
 
     @objc private func listTabChanged(_ sender: NSSegmentedControl) {
@@ -272,7 +292,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         rebuildActiveList()
     }
 
-    @objc private func refreshFinderList() {
+    @objc private func refreshDynamicList() {
+        switch activeListTab {
+        case .finder:
+            refreshFinderList()
+        case .zoxide:
+            refreshZoxideList()
+        default:
+            break
+        }
+    }
+
+    private func refreshFinderList() {
         setStatus("Loading Finder…")
         switch finderReader.listOpenFolders() {
         case .success(let entries):
@@ -312,6 +343,46 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         }
     }
 
+    private func refreshZoxideList() {
+        setStatus("Loading zoxide…")
+        switch zoxideReader.listFolders() {
+        case .success(let entries):
+            zoxideEntries = entries
+            zoxideDidLoadOnce = true
+            updateSegmentTitles()
+            if entries.isEmpty {
+                setStatus("zoxide DB empty")
+            } else if entries.count >= ZoxideReader.capacity {
+                setStatus("Zox · \(entries.count) (max)")
+            } else {
+                setStatus("Zox · \(entries.count)")
+            }
+            if activeListTab == .zoxide {
+                rebuildActiveList()
+            }
+        case .failure(.notInstalled):
+            zoxideDidLoadOnce = true
+            zoxideEntries = []
+            updateSegmentTitles()
+            setStatus("zoxide not found")
+            if activeListTab == .zoxide {
+                rebuildActiveList()
+            }
+        case .failure(.commandFailed(let message)):
+            zoxideDidLoadOnce = true
+            zoxideEntries = []
+            updateSegmentTitles()
+            let short = message.count > 48 ? String(message.prefix(45)) + "…" : message
+            setStatus("zoxide: \(short)")
+            #if DEBUG
+            NSLog("[DialogJumper] zoxide: %@", message)
+            #endif
+            if activeListTab == .zoxide {
+                rebuildActiveList()
+            }
+        }
+    }
+
     private func rebuildActiveList() {
         guard let document = listDocument, let scroll = listScroll else { return }
         document.subviews.forEach { $0.removeFromSuperview() }
@@ -338,7 +409,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         case .finder:
             let emptyMessage: String
             if !finderDidLoadOnce {
-                emptyMessage = "↻ Refresh to load Finder windows"
+                emptyMessage = "↻ Refresh Finder windows"
             } else if finderEntries.isEmpty {
                 emptyMessage = "No open Finder windows"
             } else {
@@ -351,6 +422,23 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
                 scroll: scroll
             ) { index, width in
                 makeFinderRow(entry: finderEntries[index], index: index, width: width)
+            }
+        case .zoxide:
+            let emptyMessage: String
+            if !zoxideDidLoadOnce {
+                emptyMessage = "↻ Refresh zoxide (frecency)"
+            } else if zoxideEntries.isEmpty {
+                emptyMessage = "No zoxide paths (or not installed)"
+            } else {
+                emptyMessage = ""
+            }
+            rebuildRows(
+                count: zoxideEntries.count,
+                emptyMessage: emptyMessage,
+                document: document,
+                scroll: scroll
+            ) { index, width in
+                makeZoxideRow(entry: zoxideEntries[index], index: index, width: width)
             }
         }
     }
@@ -477,6 +565,56 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         star.toolTip = "Add to Favorites"
 
         let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(finderCopyPath(_:)))
+        copy.glyphFontSize = 14
+        copy.frame = NSRect(
+            x: stackX + starW + 4,
+            y: (rowHeight - copyH) / 2,
+            width: copyW,
+            height: copyH
+        )
+        copy.toolTip = "Copy full path"
+
+        container.addSubview(star)
+        container.addSubview(copy)
+        return container
+    }
+
+    private func makeZoxideRow(entry: ZoxideFolderEntry, index: Int, width: CGFloat) -> NSView {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
+        container.autoresizingMask = [.width]
+
+        let jumpWidth = max(80, width - recentManageWidth - 4)
+        let row = FolderListRowControl(
+            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
+        )
+        row.configure(
+            displayName: entry.displayName,
+            path: entry.path,
+            isAvailable: entry.isAvailable,
+            unavailableMessage: entry.unavailableMessage,
+            index: index
+        )
+        row.target = self
+        row.action = #selector(zoxideClicked(_:))
+        row.autoresizingMask = [.width, .height]
+        container.addSubview(row)
+
+        let starW: CGFloat = 16
+        let starH: CGFloat = 16
+        let copyW: CGFloat = 24
+        let copyH: CGFloat = 24
+        let stackX = jumpWidth + 2
+
+        let star = makeTinyButton(title: "★", tag: index, action: #selector(zoxideFavorite(_:)))
+        star.frame = NSRect(
+            x: stackX,
+            y: (rowHeight - starH) / 2,
+            width: starW,
+            height: starH
+        )
+        star.toolTip = "Add to Favorites"
+
+        let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(zoxideCopyPath(_:)))
         copy.glyphFontSize = 14
         copy.frame = NSRect(
             x: stackX + starW + 4,
@@ -638,6 +776,45 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let index = (sender as? NSControl)?.tag ?? -1
         guard finderEntries.indices.contains(index) else { return }
         let path = finderEntries[index].path
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(path, forType: .string)
+        setStatus("Copied path")
+    }
+
+    @objc private func zoxideClicked(_ sender: Any?) {
+        let index: Int?
+        if let row = sender as? FolderListRowControl {
+            index = row.entryIndex
+        } else if let button = sender as? NSControl {
+            index = button.tag
+        } else {
+            index = nil
+        }
+        guard let index, zoxideEntries.indices.contains(index) else { return }
+        let entry = zoxideEntries[index]
+        if entry.isAvailable {
+            pathField?.stringValue = entry.path
+            setStatus("Jumping…")
+            onJump?(entry.path)
+        } else {
+            let reason = entry.unavailableMessage ?? "That folder is not available."
+            setStatus("Unavailable")
+            onUnavailableRecent?(reason)
+        }
+    }
+
+    @objc private func zoxideFavorite(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
+        guard zoxideEntries.indices.contains(index) else { return }
+        let path = zoxideEntries[index].path
+        pathField?.stringValue = path
+        onAddFavoriteFromPath?(path)
+    }
+
+    @objc private func zoxideCopyPath(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
+        guard zoxideEntries.indices.contains(index) else { return }
+        let path = zoxideEntries[index].path
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(path, forType: .string)
         setStatus("Copied path")
