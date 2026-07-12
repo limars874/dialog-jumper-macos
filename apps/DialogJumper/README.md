@@ -20,10 +20,10 @@ Menu bar:
 
 Menu:
 
-- Accessibility + File Dialog status lines
+- Accessibility · Folder Jump · Last jump（干净状态行）
 - **Focus Path on Toolbar…** when eligible
-- **Recheck Accessibility** (no prompt storm) / Open Settings / Request / Relaunch
-- Last jump summary
+- **Recheck** / Open Settings / Relaunch（无单独 Request）
+- About · Quit
 
 ## Test
 
