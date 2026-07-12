@@ -39,12 +39,20 @@ public struct FinderWindowsReader: FinderWindowsReading {
     }
 
     public func listOpenFolders() -> Result<[FinderFolderEntry], FinderWindowsError> {
+        // 注意：不要 `repeat with w in every Finder window`（会得到脆弱 reference，
+        // target as alias 在新系统上大量失败）。用 window 索引 + 双路径 coercion。
         let source = """
         set outText to ""
         tell application "Finder"
-          repeat with w in every Finder window
+          set n to count of windows
+          repeat with i from 1 to n
             try
-              set p to POSIX path of (target of w as alias)
+              set w to window i
+              try
+                set p to POSIX path of (target of w as alias)
+              on error
+                set p to POSIX path of (target of w as text)
+              end try
               if outText is "" then
                 set outText to p
               else
