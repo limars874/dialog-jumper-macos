@@ -104,3 +104,13 @@
 - **Did**: 落地 `FavoritesRepository`（显式顺序、path 去重、软上限 40、可选 bookmark、UserDefaults 持久化）与 toolbar Favorites 列表（★ 添加、↑↓✕ 管理、整行 jump）；复用 full-hit row + `.activeAlways` tracking；43 tests 绿。
 - **Decided**: 添加入口以 Path 字段 ★ Favorite 为主；bookmark 尽力存储但身份仍以标准化 path 为主；不接 Finder 边栏同步。同 commit 保留 ticket 05 后未提交的 Recents 整行 hit-test/hover UX。
 - **Refs**: `FavoritesRepository.swift`, `AttachedPathToolbarController.swift`, `FavoritesRepositoryTests.swift`, issues/06
+
+## [2026-07-12] Cancel implementation ticket 07 global shortcut
+- **Did**: Owner 砍掉实现票 07（⌥⌘J 加速器）；更新 ticket Status=cancelled、progress、09 blockers。
+- **Decided**: MVP 不注册全局热键。主路径=附着 toolbar；需要 Go to Folder 时用系统 ⇧⌘G。菜单栏维持 01–04 已有次入口，不为 07 扩 scope。⌥Space 仍禁止作默认（现无全局 shortcut）。
+- **Refs**: `.scratch/dialog-jumper-mvp/issues/07-shortcut-and-menubar.md`, `docs/progress.md`, issues/09
+
+## [2026-07-12] Implement ticket 08 runtime failure recovery
+- **Did**: 落地 Accessibility 会话 revoke 呈现（ready→paused 边沿一次性 alert + 菜单 Revoked 文案）、Recheck Accessibility（无 prompt）、Jump/Focus 失败可见恢复文案（noEligible / dialogLost / paused）；`RuntimeRecoveryTests` 8 项；全套 52 tests 绿。
+- **Decided**: 纯映射放 Core `AccessibilityGate.applyTrustChange`；不实现 07 全局热键；不循环 `AXIsProcessTrustedWithOptions`。
+- **Refs**: `AccessibilityGate.swift`, `FolderJumpExecutor.swift`, `AppDelegate.swift`, `RuntimeRecoveryTests.swift`, issues/08

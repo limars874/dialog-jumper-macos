@@ -24,27 +24,60 @@ public enum FolderJumpFailure: Equatable, Sendable {
     public var userMessage: String {
         switch self {
         case .accessibilityPaused:
-            return "Accessibility is paused — Folder Jump disabled."
+            return "Accessibility is off. Folder Jump is paused — open Accessibility Settings, then Recheck."
         case .noEligibleDialog:
-            return "No eligible File Dialog detected."
+            return "No standard File Dialog detected. Custom or non-standard pickers aren't supported — leave that UI alone."
         case .path(let reason):
             return reason.userMessage
         case .postEventDenied:
             return "Cannot send keyboard/mouse events to the File Dialog."
         case .goToFolderDidNotOpen:
-            return "Go to Folder did not open."
+            return "Go to Folder did not open. Retry when a standard File Dialog is frontmost."
         case .pathFieldNotFound:
-            return "Could not find the Go to Folder path field."
+            return "Could not find the Go to Folder path field. Retry when the dialog is stable."
         case .pathFieldNotWritable:
-            return "Could not write the path into Go to Folder."
+            return "Could not write the path into Go to Folder. Retry when the dialog is stable."
         case .confirmFailed:
-            return "Could not confirm Go to Folder (sheet still open)."
+            return "Could not confirm Go to Folder (sheet still open). Retry when stable — nothing was submitted."
         case .verificationFailed:
-            return "Jump finished without location evidence — not claiming success."
+            return "Jump finished without location evidence — not claiming success. Retry if the dialog is still open."
         case .dialogLost:
-            return "File Dialog disappeared during jump."
+            return "File Dialog disappeared during jump. Nothing was submitted for you. Retry if a standard dialog is open."
         case .actionFailed(let detail):
             return detail
+        }
+    }
+
+    /// Short alert title for recoverable / recovery-oriented failures.
+    public var alertTitle: String {
+        switch self {
+        case .accessibilityPaused:
+            return "Folder Jump paused"
+        case .noEligibleDialog:
+            return "No standard File Dialog"
+        case .path:
+            return "Path not usable"
+        case .dialogLost:
+            return "Jump interrupted"
+        case .postEventDenied, .goToFolderDidNotOpen, .pathFieldNotFound,
+             .pathFieldNotWritable, .confirmFailed, .verificationFailed, .actionFailed:
+            return "Jump did not finish"
+        }
+    }
+
+    /// Compact status line for the attached toolbar (may truncate long detail).
+    public var toolbarStatus: String {
+        switch self {
+        case .accessibilityPaused:
+            return "Paused · need Accessibility"
+        case .noEligibleDialog:
+            return "No standard File Dialog"
+        case .dialogLost:
+            return "Dialog lost · nothing submitted"
+        case .path:
+            return "Path not usable"
+        default:
+            return "Jump failed · retry when stable"
         }
     }
 }

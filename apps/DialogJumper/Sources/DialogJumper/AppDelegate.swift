@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var statusMenu: NSMenu!
     private var authorization: AccessibilityAuthorization = .paused
+    /// Once true, a later pause is presented as mid-session revoke until ready again.
+    private var accessibilityHadBeenReady = false
     private var detectionState: FileDialogDetectionState = .accessibilityPaused
     private var lastJumpSummary = "Last jump: —"
     private var pollTimer: Timer?
@@ -28,8 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         static let focusPath = 5
         // 6 separator
         static let requestAccess = 7
-        static let openSettings = 8
-        static let relaunch = 9
+        static let recheckAccess = 8
+        static let openSettings = 9
+        static let relaunch = 10
     }
 
     init(
@@ -162,6 +165,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         request.target = self
         menu.addItem(request)
 
+        let recheck = NSMenuItem(title: "Recheck Accessibility", action: #selector(recheckAccessibility), keyEquivalent: "r")
+        recheck.target = self
+        menu.addItem(recheck)
+
         let settings = NSMenuItem(title: "Open Accessibility Settings…", action: #selector(openAccessibilitySettings), keyEquivalent: "s")
         settings.target = self
         menu.addItem(settings)
@@ -192,7 +199,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshFromSystem() {
         let trusted = trustReader.isProcessTrusted()
-        authorization = AccessibilityGate.authorization(isProcessTrusted: trusted)
+        let previous = authorization
+        let transition = AccessibilityGate.applyTrustChange(
+            previous: previous,
+            isProcessTrusted: trusted,
+            hadBeenReady: accessibilityHadBeenReady
+        )
+        authorization = transition.authorization
+        accessibilityHadBeenReady = transition.hadBeenReady
         detectionState = fileDialogDetector.detect(authorization: authorization)
 
         // Update menu text first so UI never stays on placeholders if toolbar sync is slow.
@@ -211,13 +225,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             attachedToolbar.sync(to: detectionState, showChrome: showChrome)
         } else {
+            // paused / revoked：拆除依赖 AX 的 chrome，绝不附着
             chromeWasShown = false
             attachedToolbar.dismiss()
         }
 
+        if transition.justRevoked {
+            // 一次性提示：ready→paused 边沿，不在 0.5s 轮询里重复弹
+            notifyAccessibilityRevokedOnce()
+        }
+
         NSLog(
-            "[DialogJumper] trusted=%@ detect=%@ panels=%ld",
+            "[DialogJumper] trusted=%@ revokedPresent=%@ detect=%@ panels=%ld",
             trusted ? "YES" : "NO",
+            transition.isRevokedPresentation ? "YES" : "NO",
             detectionState.menuTitle as NSString,
             NSWorkspace.shared.runningApplications.filter {
                 FileDialogFingerprint.isOpenAndSavePanelService(bundleIdentifier: $0.bundleIdentifier)
@@ -259,9 +280,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
 
+        let revoked = authorization == .paused && accessibilityHadBeenReady
         statusItem.button?.title = menuBarGlyph()
 
-        menu.item(at: MenuIndex.accessibility)?.title = AccessibilityGate.statusTitle(authorization)
+        menu.item(at: MenuIndex.accessibility)?.title =
+            AccessibilityGate.statusTitle(authorization, revoked: revoked)
 
         let jumpReady = AccessibilityGate.isFolderJumpEnabled(authorization)
         let panelApps = NSWorkspace.shared.runningApplications.filter {
@@ -269,30 +292,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let panelCount = panelApps.count
         let panelNames = panelApps.compactMap(\.localizedName).joined(separator: ", ")
+        let hasEligible: Bool = {
+            if case .eligible = detectionState { return true }
+            return false
+        }()
 
-        if !jumpReady {
-            menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: paused (Accessibility)"
-        } else if case .eligible = detectionState {
-            menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: ready (Path + Recents + Favorites)"
-        } else {
-            var waiting = "Folder Jump: waiting — panelServices=\(panelCount)"
-            if !panelNames.isEmpty { waiting += " {\(panelNames)}" }
-            menu.item(at: MenuIndex.folderJump)?.title = waiting
+        var jumpTitle = AccessibilityGate.folderJumpMenuTitle(
+            authorization: authorization,
+            revoked: revoked,
+            hasEligibleDialog: hasEligible,
+            panelServiceCount: panelCount
+        )
+        if jumpReady, !hasEligible, !panelNames.isEmpty {
+            jumpTitle += " {\(panelNames)}"
         }
+        menu.item(at: MenuIndex.folderJump)?.title = jumpTitle
 
         menu.item(at: MenuIndex.fileDialog)?.title = detectionState.menuTitle
         menu.item(at: MenuIndex.lastJump)?.title = lastJumpSummary
 
-        let canJump: Bool = {
-            guard jumpReady else { return false }
-            if case .eligible = detectionState { return true }
-            return false
-        }()
+        let canJump = jumpReady && hasEligible
         if let focus = menu.item(at: MenuIndex.focusPath) {
-            focus.isEnabled = canJump
-            focus.title = canJump ? "Focus Path on Toolbar…" : "Focus Path… (need eligible File Dialog)"
+            // Keep enabled so user can get an honest explanation when nothing is eligible.
+            focus.isEnabled = true
+            if canJump {
+                focus.title = "Focus Path on Toolbar…"
+            } else if !jumpReady {
+                focus.title = revoked
+                    ? "Focus Path… (Accessibility revoked)"
+                    : "Focus Path… (need Accessibility)"
+            } else {
+                focus.title = "Focus Path… (need standard File Dialog)"
+            }
         }
         menu.item(at: MenuIndex.requestAccess)?.isEnabled = !jumpReady
+        menu.item(at: MenuIndex.recheckAccess)?.isEnabled = true
         menu.item(at: MenuIndex.relaunch)?.isEnabled = !jumpReady
     }
 
@@ -306,7 +340,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func jumpToPath() {
         refreshFromSystem()
-        guard case .eligible = detectionState, authorization == .ready else { return }
+        if authorization != .ready {
+            presentJumpFailure(.accessibilityPaused)
+            return
+        }
+        guard case .eligible = detectionState else {
+            presentJumpFailure(.noEligibleDialog)
+            return
+        }
         attachedToolbar.focusPathField()
     }
 
@@ -327,15 +368,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             attachedToolbar.setStatus("Jumped · \(shortPath(path))")
             applyToUI()
         case .failure(let failure):
-            lastJumpSummary = "Last jump: failed"
-            attachedToolbar.setStatus("Failed")
-            applyToUI()
-            let alert = NSAlert()
-            alert.messageText = "Jump did not run"
-            alert.informativeText = failure.userMessage
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+            presentJumpFailure(failure)
         }
+    }
+
+    /// Visible recovery-oriented failure: menu summary + toolbar status + one alert.
+    private func presentJumpFailure(_ failure: FolderJumpFailure) {
+        lastJumpSummary = "Last jump: failed — \(shortMessage(failure.userMessage))"
+        // Toolbar may already be dismissed (paused / dialog gone); still set status if present.
+        attachedToolbar.setStatus(failure.toolbarStatus)
+        applyToUI()
+        let alert = NSAlert()
+        alert.messageText = failure.alertTitle
+        alert.informativeText = failure.userMessage
+        alert.addButton(withTitle: "OK")
+        if failure == .accessibilityPaused {
+            alert.addButton(withTitle: "Open Accessibility Settings…")
+        }
+        let response = alert.runModal()
+        if failure == .accessibilityPaused, response == .alertSecondButtonReturn {
+            openAccessibilitySettings()
+        }
+    }
+
+    private func notifyAccessibilityRevokedOnce() {
+        lastJumpSummary = "Last jump: — (Accessibility revoked)"
+        applyToUI()
+        let alert = NSAlert()
+        alert.messageText = "Accessibility revoked"
+        alert.informativeText = AccessibilityGate.revokeAlertMessage()
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Open Accessibility Settings…")
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            openAccessibilitySettings()
+        }
+    }
+
+    private func shortMessage(_ text: String, limit: Int = 72) -> String {
+        if text.count <= limit { return text }
+        return String(text.prefix(limit - 1)) + "…"
     }
 
     private func explainUnavailableRecent(_ reason: String) {
@@ -402,9 +474,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func requestAccessibility() {
+        // User-initiated only — never loop this from the poll timer.
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         refreshFromSystem()
+    }
+
+    /// Re-read trust only. Never presents the system prompt (no storm).
+    @objc private func recheckAccessibility() {
+        refreshFromSystem()
+        let revoked = authorization == .paused && accessibilityHadBeenReady
+        let title = AccessibilityGate.statusTitle(authorization, revoked: revoked)
+        lastJumpSummary = authorization == .ready
+            ? "Last recheck: Accessibility ready"
+            : "Last recheck: \(title)"
+        applyToUI()
     }
 
     @objc private func openAccessibilitySettings() {
