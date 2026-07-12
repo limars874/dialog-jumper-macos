@@ -18,6 +18,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private enum ListTab: Int {
         case recents = 0
         case favorites = 1
+        case finder = 2
     }
 
     private var panel: NSPanel?
@@ -28,15 +29,24 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var listDocument: NSView?
     private var emptyListLabel: NSTextField?
     private var addFavoriteButton: NSButton?
+    private var refreshFinderButton: TinyActionButton?
     private var attachedPID: pid_t?
     private var recentEntries: [RecentFolderEntry] = []
     private var favoriteEntries: [FavoriteFolderEntry] = []
+    private var finderEntries: [FinderFolderEntry] = []
+    private var finderDidLoadOnce = false
     private var activeListTab: ListTab = .recents
+    private let finderReader: any FinderWindowsReading
 
     private let chromeSize = CGSize(width: 300, height: 420)
     private let rowHeight: CGFloat = 30
     private let favoriteManageWidth: CGFloat = 52
     private let recentManageWidth: CGFloat = 46
+
+    init(finderReader: any FinderWindowsReading = FinderWindowsReader()) {
+        self.finderReader = finderReader
+        super.init()
+    }
 
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
         guard case .eligible(let dialog) = detection else {
@@ -184,18 +194,29 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         add.action = #selector(addFavoriteFromField)
         add.toolTip = "Add path field folder to Favorites"
         addFavoriteButton = add
-        // 列表：Recents | Favorites 切换，整段高度给当前列表
+
+        // 列表：Recent | Favs | Finder + 刷新（仅 Finder tab 用）
         let segment = NSSegmentedControl()
-        segment.segmentCount = 2
-        segment.setLabel("Recents", forSegment: ListTab.recents.rawValue)
-        segment.setLabel("Favorites", forSegment: ListTab.favorites.rawValue)
+        segment.segmentCount = 3
+        segment.setLabel("Recent", forSegment: ListTab.recents.rawValue)
+        segment.setLabel("Favs", forSegment: ListTab.favorites.rawValue)
+        segment.setLabel("Finder", forSegment: ListTab.finder.rawValue)
         segment.trackingMode = .selectOne
         segment.segmentStyle = .rounded
         segment.target = self
         segment.action = #selector(listTabChanged(_:))
         segment.selectedSegment = ListTab.recents.rawValue
-        segment.frame = NSRect(x: 12, y: h - 124, width: w - 24, height: 24)
+        segment.frame = NSRect(x: 12, y: h - 124, width: w - 24 - 30, height: 24)
         listSegment = segment
+
+        let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 124, width: 26, height: 24))
+        refresh.glyph = "↻"
+        refresh.glyphFontSize = 14
+        refresh.toolTip = "Refresh Finder windows"
+        refresh.target = self
+        refresh.action = #selector(refreshFinderList)
+        refresh.isHidden = true
+        refreshFinderButton = refresh
 
         let empty = makeLabel("Jump once to fill Recents", bold: false, size: 11)
         empty.textColor = .tertiaryLabelColor
@@ -222,24 +243,70 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         root.addSubview(jump)
         root.addSubview(add)
         root.addSubview(segment)
+        root.addSubview(refresh)
         root.addSubview(empty)
         root.addSubview(scroll)
 
         self.panel = panel
         updateSegmentTitles()
+        updateRefreshButtonVisibility()
         rebuildActiveList()
         return panel
     }
 
     private func updateSegmentTitles() {
         guard let segment = listSegment else { return }
-        segment.setLabel("Recents (\(recentEntries.count))", forSegment: ListTab.recents.rawValue)
-        segment.setLabel("Favorites (\(favoriteEntries.count))", forSegment: ListTab.favorites.rawValue)
+        segment.setLabel("Recent (\(recentEntries.count))", forSegment: ListTab.recents.rawValue)
+        segment.setLabel("Favs (\(favoriteEntries.count))", forSegment: ListTab.favorites.rawValue)
+        let finderLabel = finderDidLoadOnce ? "Finder (\(finderEntries.count))" : "Finder"
+        segment.setLabel(finderLabel, forSegment: ListTab.finder.rawValue)
+    }
+
+    private func updateRefreshButtonVisibility() {
+        refreshFinderButton?.isHidden = activeListTab != .finder
     }
 
     @objc private func listTabChanged(_ sender: NSSegmentedControl) {
         activeListTab = ListTab(rawValue: sender.selectedSegment) ?? .recents
+        updateRefreshButtonVisibility()
         rebuildActiveList()
+    }
+
+    @objc private func refreshFinderList() {
+        setStatus("Loading Finder…")
+        switch finderReader.listOpenFolders() {
+        case .success(let entries):
+            finderEntries = entries
+            finderDidLoadOnce = true
+            updateSegmentTitles()
+            if entries.isEmpty {
+                setStatus("No open Finder windows")
+            } else {
+                setStatus("Finder · \(entries.count)")
+            }
+            if activeListTab == .finder {
+                rebuildActiveList()
+            }
+        case .failure(.notAuthorized):
+            finderDidLoadOnce = true
+            finderEntries = []
+            updateSegmentTitles()
+            setStatus("Allow Automation for Finder")
+            if activeListTab == .finder {
+                rebuildActiveList()
+            }
+        case .failure(.scriptFailed(let message)):
+            finderDidLoadOnce = true
+            finderEntries = []
+            updateSegmentTitles()
+            setStatus("Finder read failed")
+            #if DEBUG
+            NSLog("[DialogJumper] Finder script: %@", message)
+            #endif
+            if activeListTab == .finder {
+                rebuildActiveList()
+            }
+        }
     }
 
     private func rebuildActiveList() {
@@ -264,6 +331,23 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
                 scroll: scroll
             ) { index, width in
                 makeFavoriteRow(entry: favoriteEntries[index], index: index, width: width)
+            }
+        case .finder:
+            let emptyMessage: String
+            if !finderDidLoadOnce {
+                emptyMessage = "↻ Refresh to load Finder windows"
+            } else if finderEntries.isEmpty {
+                emptyMessage = "No open Finder windows"
+            } else {
+                emptyMessage = ""
+            }
+            rebuildRows(
+                count: finderEntries.count,
+                emptyMessage: emptyMessage,
+                document: document,
+                scroll: scroll
+            ) { index, width in
+                makeFinderRow(entry: finderEntries[index], index: index, width: width)
             }
         }
     }
@@ -340,6 +424,56 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         star.toolTip = "Add to Favorites"
 
         let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(recentCopyPath(_:)))
+        copy.glyphFontSize = 14
+        copy.frame = NSRect(
+            x: stackX + starW + 4,
+            y: (rowHeight - copyH) / 2,
+            width: copyW,
+            height: copyH
+        )
+        copy.toolTip = "Copy full path"
+
+        container.addSubview(star)
+        container.addSubview(copy)
+        return container
+    }
+
+    private func makeFinderRow(entry: FinderFolderEntry, index: Int, width: CGFloat) -> NSView {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
+        container.autoresizingMask = [.width]
+
+        let jumpWidth = max(80, width - recentManageWidth - 4)
+        let row = FolderListRowControl(
+            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
+        )
+        row.configure(
+            displayName: entry.displayName,
+            path: entry.path,
+            isAvailable: entry.isAvailable,
+            unavailableMessage: entry.unavailableMessage,
+            index: index
+        )
+        row.target = self
+        row.action = #selector(finderClicked(_:))
+        row.autoresizingMask = [.width, .height]
+        container.addSubview(row)
+
+        let starW: CGFloat = 16
+        let starH: CGFloat = 16
+        let copyW: CGFloat = 24
+        let copyH: CGFloat = 24
+        let stackX = jumpWidth + 2
+
+        let star = makeTinyButton(title: "★", tag: index, action: #selector(finderFavorite(_:)))
+        star.frame = NSRect(
+            x: stackX,
+            y: (rowHeight - starH) / 2,
+            width: starW,
+            height: starH
+        )
+        star.toolTip = "Add to Favorites"
+
+        let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(finderCopyPath(_:)))
         copy.glyphFontSize = 14
         copy.frame = NSRect(
             x: stackX + starW + 4,
@@ -462,6 +596,45 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let index = (sender as? NSControl)?.tag ?? -1
         guard recentEntries.indices.contains(index) else { return }
         let path = recentEntries[index].path
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(path, forType: .string)
+        setStatus("Copied path")
+    }
+
+    @objc private func finderClicked(_ sender: Any?) {
+        let index: Int?
+        if let row = sender as? FolderListRowControl {
+            index = row.entryIndex
+        } else if let button = sender as? NSControl {
+            index = button.tag
+        } else {
+            index = nil
+        }
+        guard let index, finderEntries.indices.contains(index) else { return }
+        let entry = finderEntries[index]
+        if entry.isAvailable {
+            pathField?.stringValue = entry.path
+            setStatus("Jumping…")
+            onJump?(entry.path)
+        } else {
+            let reason = entry.unavailableMessage ?? "That folder is not available."
+            setStatus("Unavailable")
+            onUnavailableRecent?(reason)
+        }
+    }
+
+    @objc private func finderFavorite(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
+        guard finderEntries.indices.contains(index) else { return }
+        let path = finderEntries[index].path
+        pathField?.stringValue = path
+        onAddFavoriteFromPath?(path)
+    }
+
+    @objc private func finderCopyPath(_ sender: Any?) {
+        let index = (sender as? NSControl)?.tag ?? -1
+        guard finderEntries.indices.contains(index) else { return }
+        let path = finderEntries[index].path
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(path, forType: .string)
         setStatus("Copied path")
