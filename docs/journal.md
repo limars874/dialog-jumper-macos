@@ -149,3 +149,8 @@
 - **Did**: 收尾后一长串 polish/Finder 未写入 progress/journal；本次补齐真相快照与两条 journal。
 - **Decided**: 有意义功能落点后应更新 progress；journal 可合并同日多 commit 为一条主题。
 - **Refs**: `docs/progress.md`, `docs/journal.md`
+
+## [2026-07-12] Zoxide tab path source
+- **Did**: 第 4 tab **Zox**；↻ → `zoxide query -l`（扫 Homebrew/local bin PATH）；cap 50；Jump/★/复制同 Recents。
+- **Decided**: 重度 zoxide/yazi 用户的主 path 来源；不轮询；未安装时 status `zoxide not found`。
+- **Refs**: `ZoxideReader.swift`, commit `3ff30c6`
