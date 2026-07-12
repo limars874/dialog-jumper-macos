@@ -8,8 +8,8 @@ public protocol FileDialogDetecting: Sendable {
 
 /// Detects system Open/Save panels.
 ///
-/// `openAndSavePanelService` often stays alive after Cancel. We only treat a panel
-/// as eligible when it has a **visible large window** (CG and/or AX), not merely a process.
+/// The panel XPC service often stays alive after Cancel. Eligibility requires a
+/// **visible on-screen** large window (or large AX window), never process-only.
 public struct FileDialogDetector: FileDialogDetecting {
     public init() {}
 
@@ -34,7 +34,7 @@ public struct FileDialogDetector: FileDialogDetecting {
             let hit = bestEligibleWindow(pid: pid)
                 ?? FileDialogFingerprintScore(
                     points: 2,
-                    reasons: ["visiblePanelChrome"],
+                    reasons: ["visibleOnScreenChrome"],
                     panelKind: inferKind(application.localizedName)
                 )
 
@@ -64,7 +64,11 @@ public struct FileDialogDetector: FileDialogDetecting {
 
         if let pid = cgVisiblePanelServicePID() {
             let hit = bestEligibleWindow(pid: pid)
-                ?? FileDialogFingerprintScore(points: 2, reasons: ["cgVisiblePanelChrome"], panelKind: .unknown)
+                ?? FileDialogFingerprintScore(
+                    points: 2,
+                    reasons: ["cgOnScreenPanel"],
+                    panelKind: .unknown
+                )
             return .eligible(
                 EligibleFileDialog(
                     panelPID: pid,
@@ -92,14 +96,15 @@ public struct FileDialogDetector: FileDialogDetecting {
               let open = localizedName.firstIndex(of: "("),
               let close = localizedName.lastIndex(of: ")"),
               open < close
-    private func isPanelVisiblyOpen(pid: pid_t) -> Bool {
-        // Only on-screen windows. optionAll would keep chrome after Cancel/Jump
-        // when the panel service leaves off-screen leftovers.
-        if let size = largestCGSize(pid: pid, onScreenOnly: true), size.width > 200, size.height > 150 {
-            return true
-        }
-        return hasLargeAXWindow(pid: pid)
+        else { return nil }
+        let inner = localizedName[localizedName.index(after: open)..<close]
+        let name = String(inner).trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : name
     }
+
+    /// Process alive ≠ panel open. Cancel leaves the service running.
+    private func isPanelVisiblyOpen(pid: pid_t) -> Bool {
+        if let size = largestOnScreenCGSize(pid: pid), size.width > 200, size.height > 150 {
             return true
         }
         return hasLargeAXWindow(pid: pid)
@@ -120,20 +125,22 @@ public struct FileDialogDetector: FileDialogDetecting {
         return false
     }
 
-    private func largestCGSize(pid: pid_t, onScreenOnly: Bool) -> CGSize? {
-        let options: CGWindowListOption = onScreenOnly
-            ? [.optionOnScreenOnly, .excludeDesktopElements]
-            : [.optionAll]
-        let info = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
+    private func largestOnScreenCGSize(pid: pid_t) -> CGSize? {
+        let info = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] ?? []
         var best = CGSize.zero
         for window in info {
-            guard let ownerPID = ownerPID(from: window), ownerPID == pid else { continue }
+            guard let ownerPID = readPID(window), ownerPID == pid else { continue }
             if let alpha = window[kCGWindowAlpha as String] as? Double, alpha < 0.05 { continue }
             if let alpha = window[kCGWindowAlpha as String] as? NSNumber, alpha.doubleValue < 0.05 {
                 continue
             }
-            guard let (w, h) = wh(from: window), w * h > best.width * best.height else { continue }
-            best = CGSize(width: w, height: h)
+            guard let (w, h) = readWH(window) else { continue }
+            if w * h > best.width * best.height {
+                best = CGSize(width: w, height: h)
+            }
         }
         return best == .zero ? nil : best
     }
@@ -148,7 +155,7 @@ public struct FileDialogDetector: FileDialogDetecting {
         for window in info {
             let owner = (window[kCGWindowOwnerName as String] as? String) ?? ""
             guard owner.lowercased().contains("open and save panel") else { continue }
-            guard let pid = ownerPID(from: window), let (w, h) = wh(from: window) else { continue }
+            guard let pid = readPID(window), let (w, h) = readWH(window) else { continue }
             guard w > 200, h > 150 else { continue }
             let area = w * h
             if area > bestArea {
@@ -159,13 +166,13 @@ public struct FileDialogDetector: FileDialogDetecting {
         return bestPID
     }
 
-    private func ownerPID(from window: [String: Any]) -> pid_t? {
+    private func readPID(_ window: [String: Any]) -> pid_t? {
         if let p = window[kCGWindowOwnerPID as String] as? pid_t { return p }
         if let n = window[kCGWindowOwnerPID as String] as? NSNumber { return pid_t(truncating: n) }
         return nil
     }
 
-    private func wh(from window: [String: Any]) -> (CGFloat, CGFloat)? {
+    private func readWH(_ window: [String: Any]) -> (CGFloat, CGFloat)? {
         guard let bounds = window[kCGWindowBounds as String] as? [String: Any] else { return nil }
         let w = (bounds["Width"] as? CGFloat)
             ?? (bounds["Width"] as? NSNumber).map { CGFloat(truncating: $0) }
