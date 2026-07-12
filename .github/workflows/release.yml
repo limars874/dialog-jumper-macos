@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag name for the release title (e.g. v0.2.0). Leave empty to use run id."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          uname -m
+
+      - name: Package release zip
+        env:
+          DIALOGJUMPER_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag || github.sha }}
+        run: |
+          chmod +x apps/DialogJumper/scripts/package-release.sh
+          apps/DialogJumper/scripts/package-release.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DialogJumper-macos
+          path: apps/DialogJumper/dist/DialogJumper-*.zip
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag || format('dev-{0}', github.run_id) }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag || format('dev-{0}', github.run_id) }}
+          generate_release_notes: true
+          draft: ${{ github.ref_type != 'tag' }}
+          files: apps/DialogJumper/dist/DialogJumper-*.zip
+          body: |
+            ## Dialog Jumper (unsigned / ad-hoc)
+
+            **Not notarized** — no Apple Developer ID. First open may need:
+
+            1. Unzip, then either:
+               - Right-click **DialogJumper.app** → Open → Open
+               - Or: `xattr -cr DialogJumper.app` then open
+            2. System Settings → Privacy & Security → **Accessibility** → enable Dialog Jumper
+            3. Optional: **Automation** → Dialog Jumper controlling **Finder** (Find tab)
+            4. Optional: install [zoxide](https://github.com/ajeetdsouza/zoxide) for the Zox tab
+
+            Do **not** expect Gatekeeper green light. Self-use / friend-use only.
+
+            ### Run
+            Menu bar **DJ** → open a system Open/Save dialog (e.g. TextEdit → Open).
+
+            See repo `README.md` for features.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
