@@ -60,6 +60,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private let rowHeight: CGFloat = 30
     private let favoriteManageWidth: CGFloat = 52
     private let recentManageWidth: CGFloat = 46
+    /// 左侧专用拖柄，与 Jump 点击区分离
+    private let dragHandleWidth: CGFloat = 18
 
     init(
         finderReader: any FinderWindowsReading = FinderWindowsReader(),
@@ -502,165 +504,89 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 
     private func makeRecentRow(entry: RecentFolderEntry, index: Int, width: CGFloat) -> NSView {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
-        container.autoresizingMask = [.width]
-
-        let jumpWidth = max(80, width - recentManageWidth - 4)
-        let row = FolderListRowControl(
-            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
-        )
-        row.configure(
+        makeActionRow(
             displayName: entry.displayName,
             path: entry.path,
             isAvailable: entry.isAvailable,
             unavailableMessage: entry.unavailableMessage,
-            index: index
+            index: index,
+            width: width,
+            manageWidth: recentManageWidth,
+            click: #selector(recentClicked(_:)),
+            doubleClick: #selector(recentDoubleClicked(_:)),
+            leadingActions: { stackX, midY, container in
+                self.addStarCopyActions(
+                    container: container,
+                    stackX: stackX,
+                    index: index,
+                    star: #selector(self.recentFavorite(_:)),
+                    copy: #selector(self.recentCopyPath(_:))
+                )
+            }
         )
-        row.target = self
-        row.action = #selector(recentClicked(_:))
-        row.doubleAction = #selector(recentDoubleClicked(_:))
-        row.autoresizingMask = [.width, .height]
-        container.addSubview(row)
-
-        let starW: CGFloat = 16
-        let starH: CGFloat = 16
-        let copyW: CGFloat = 24
-        let copyH: CGFloat = 24
-        let stackX = jumpWidth + 2
-
-        let star = makeTinyButton(title: "★", tag: index, action: #selector(recentFavorite(_:)))
-        star.frame = NSRect(
-            x: stackX,
-            y: (rowHeight - starH) / 2,
-            width: starW,
-            height: starH
-        )
-        star.toolTip = "Add to Favorites"
-
-        let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(recentCopyPath(_:)))
-        copy.glyphFontSize = 14
-        copy.frame = NSRect(
-            x: stackX + starW + 4,
-            y: (rowHeight - copyH) / 2,
-            width: copyW,
-            height: copyH
-        )
-        copy.toolTip = "Copy full path"
-
-        container.addSubview(star)
-        container.addSubview(copy)
-        return container
     }
 
     private func makeFinderRow(entry: FinderFolderEntry, index: Int, width: CGFloat) -> NSView {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
-        container.autoresizingMask = [.width]
-
-        let jumpWidth = max(80, width - recentManageWidth - 4)
-        let row = FolderListRowControl(
-            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
-        )
-        row.configure(
+        makeActionRow(
             displayName: entry.displayName,
             path: entry.path,
             isAvailable: entry.isAvailable,
             unavailableMessage: entry.unavailableMessage,
-            index: index
+            index: index,
+            width: width,
+            manageWidth: recentManageWidth,
+            click: #selector(finderClicked(_:)),
+            doubleClick: #selector(finderDoubleClicked(_:)),
+            leadingActions: { stackX, _, container in
+                self.addStarCopyActions(
+                    container: container,
+                    stackX: stackX,
+                    index: index,
+                    star: #selector(self.finderFavorite(_:)),
+                    copy: #selector(self.finderCopyPath(_:))
+                )
+            }
         )
-        row.target = self
-        row.action = #selector(finderClicked(_:))
-        row.doubleAction = #selector(finderDoubleClicked(_:))
-        row.autoresizingMask = [.width, .height]
-        container.addSubview(row)
-
-        let starW: CGFloat = 16
-        let starH: CGFloat = 16
-        let copyW: CGFloat = 24
-        let copyH: CGFloat = 24
-        let stackX = jumpWidth + 2
-
-        let star = makeTinyButton(title: "★", tag: index, action: #selector(finderFavorite(_:)))
-        star.frame = NSRect(
-            x: stackX,
-            y: (rowHeight - starH) / 2,
-            width: starW,
-            height: starH
-        )
-        star.toolTip = "Add to Favorites"
-
-        let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(finderCopyPath(_:)))
-        copy.glyphFontSize = 14
-        copy.frame = NSRect(
-            x: stackX + starW + 4,
-            y: (rowHeight - copyH) / 2,
-            width: copyW,
-            height: copyH
-        )
-        copy.toolTip = "Copy full path"
-
-        container.addSubview(star)
-        container.addSubview(copy)
-        return container
     }
 
     private func makeZoxideRow(entry: ZoxideFolderEntry, index: Int, width: CGFloat) -> NSView {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
-        container.autoresizingMask = [.width]
-
-        let jumpWidth = max(80, width - recentManageWidth - 4)
-        let row = FolderListRowControl(
-            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
-        )
-        row.configure(
+        makeActionRow(
             displayName: entry.displayName,
             path: entry.path,
             isAvailable: entry.isAvailable,
             unavailableMessage: entry.unavailableMessage,
-            index: index
+            index: index,
+            width: width,
+            manageWidth: recentManageWidth,
+            click: #selector(zoxideClicked(_:)),
+            doubleClick: #selector(zoxideDoubleClicked(_:)),
+            leadingActions: { stackX, _, container in
+                self.addStarCopyActions(
+                    container: container,
+                    stackX: stackX,
+                    index: index,
+                    star: #selector(self.zoxideFavorite(_:)),
+                    copy: #selector(self.zoxideCopyPath(_:))
+                )
+            }
         )
-        row.target = self
-        row.action = #selector(zoxideClicked(_:))
-        row.doubleAction = #selector(zoxideDoubleClicked(_:))
-        row.autoresizingMask = [.width, .height]
-        container.addSubview(row)
-
-        let starW: CGFloat = 16
-        let starH: CGFloat = 16
-        let copyW: CGFloat = 24
-        let copyH: CGFloat = 24
-        let stackX = jumpWidth + 2
-
-        let star = makeTinyButton(title: "★", tag: index, action: #selector(zoxideFavorite(_:)))
-        star.frame = NSRect(
-            x: stackX,
-            y: (rowHeight - starH) / 2,
-            width: starW,
-            height: starH
-        )
-        star.toolTip = "Add to Favorites"
-
-        let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(zoxideCopyPath(_:)))
-        copy.glyphFontSize = 14
-        copy.frame = NSRect(
-            x: stackX + starW + 4,
-            y: (rowHeight - copyH) / 2,
-            width: copyW,
-            height: copyH
-        )
-        copy.toolTip = "Copy full path"
-
-        container.addSubview(star)
-        container.addSubview(copy)
-        return container
     }
 
     private func makeFavoriteRow(entry: FavoriteFolderEntry, index: Int, width: CGFloat) -> NSView {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
         container.autoresizingMask = [.width]
 
-        let jumpWidth = max(80, width - favoriteManageWidth - 4)
+        let handle = makeDragHandle(
+            path: entry.path,
+            displayName: entry.displayName,
+            enabled: entry.isAvailable
+        )
+        handle.frame = NSRect(x: 0, y: 0, width: dragHandleWidth, height: rowHeight)
+        container.addSubview(handle)
+
+        let jumpWidth = max(60, width - dragHandleWidth - favoriteManageWidth - 4)
         let row = FolderListRowControl(
-            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
+            frame: NSRect(x: dragHandleWidth, y: 0, width: jumpWidth, height: rowHeight)
         )
         row.configure(
             displayName: entry.displayName,
@@ -678,7 +604,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let btnW: CGFloat = 16
         let btnH: CGFloat = 16
         let midY = (rowHeight - btnH) / 2
-        let stackX = jumpWidth + 2
+        let stackX = dragHandleWidth + jumpWidth + 2
 
         let up = makeTinyButton(title: "↑", tag: index, action: #selector(favoriteMoveUp(_:)))
         up.frame = NSRect(x: stackX, y: midY, width: btnW, height: btnH)
@@ -698,6 +624,93 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         container.addSubview(down)
         container.addSubview(remove)
         return container
+    }
+
+    /// 左拖柄 + 中 Jump 区 + 右操作：拖与点分离。
+    private func makeActionRow(
+        displayName: String,
+        path: String,
+        isAvailable: Bool,
+        unavailableMessage: String?,
+        index: Int,
+        width: CGFloat,
+        manageWidth: CGFloat,
+        click: Selector,
+        doubleClick: Selector,
+        leadingActions: (CGFloat, CGFloat, NSView) -> Void
+    ) -> NSView {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
+        container.autoresizingMask = [.width]
+
+        let handle = makeDragHandle(path: path, displayName: displayName, enabled: isAvailable)
+        handle.frame = NSRect(x: 0, y: 0, width: dragHandleWidth, height: rowHeight)
+        container.addSubview(handle)
+
+        let jumpWidth = max(60, width - dragHandleWidth - manageWidth - 4)
+        let row = FolderListRowControl(
+            frame: NSRect(x: dragHandleWidth, y: 0, width: jumpWidth, height: rowHeight)
+        )
+        row.configure(
+            displayName: displayName,
+            path: path,
+            isAvailable: isAvailable,
+            unavailableMessage: unavailableMessage,
+            index: index
+        )
+        row.target = self
+        row.action = click
+        row.doubleAction = doubleClick
+        row.autoresizingMask = [.width, .height]
+        container.addSubview(row)
+
+        let stackX = dragHandleWidth + jumpWidth + 2
+        let midY = (rowHeight - 16) / 2
+        leadingActions(stackX, midY, container)
+        return container
+    }
+
+    private func addStarCopyActions(
+        container: NSView,
+        stackX: CGFloat,
+        index: Int,
+        star: Selector,
+        copy: Selector
+    ) {
+        let starW: CGFloat = 16
+        let starH: CGFloat = 16
+        let copyW: CGFloat = 24
+        let copyH: CGFloat = 24
+
+        let starBtn = makeTinyButton(title: "★", tag: index, action: star)
+        starBtn.frame = NSRect(
+            x: stackX,
+            y: (rowHeight - starH) / 2,
+            width: starW,
+            height: starH
+        )
+        starBtn.toolTip = "Add to Favorites"
+
+        let copyBtn = makeTinyButton(title: "⎘", tag: index, action: copy)
+        copyBtn.glyphFontSize = 14
+        copyBtn.frame = NSRect(
+            x: stackX + starW + 4,
+            y: (rowHeight - copyH) / 2,
+            width: copyW,
+            height: copyH
+        )
+        copyBtn.toolTip = "Copy full path"
+
+        container.addSubview(starBtn)
+        container.addSubview(copyBtn)
+    }
+
+    private func makeDragHandle(path: String, displayName: String, enabled: Bool) -> FolderDragHandleView {
+        let handle = FolderDragHandleView(frame: .zero)
+        handle.configure(path: path, displayName: displayName, enabled: enabled)
+        handle.onDragRejected = { [weak self] message in
+            self?.setStatus(message)
+        }
+        return handle
     }
 
     private func makeTinyButton(title: String, tag: Int, action: Selector) -> TinyActionButton {
@@ -1236,4 +1249,148 @@ private final class NonInteractiveLabel: NSTextField {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     override var acceptsFirstResponder: Bool { false }
+}
+
+// MARK: - Folder drag handle (left of row; independent of Jump hit area)
+
+/// 专用拖柄：只从这里发起拖放，pasteboard 为文件夹 file URL（系统 Open/Save 可原生导航）。
+private final class FolderDragHandleView: NSView, NSDraggingSource {
+    private var folderPath: String = ""
+    private var displayName: String = ""
+    private var dragEnabled = false
+    private var mouseDownPoint: NSPoint?
+    private let iconView = NSImageView()
+
+    var onDragRejected: ((String) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
+        // 四向箭头：表示「可拖走」而不是 Jump
+        iconView.image = NSImage(
+            systemSymbolName: "arrow.up.and.down.and.arrow.left.and.right",
+            accessibilityDescription: "Drag folder"
+        )?.withSymbolConfiguration(config)
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.contentTintColor = .tertiaryLabelColor
+        addSubview(iconView)
+        toolTip = "Drag onto Open/Save panel to navigate"
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func configure(path: String, displayName: String, enabled: Bool) {
+        folderPath = path
+        self.displayName = displayName
+        dragEnabled = enabled
+        alphaValue = enabled ? 1 : 0.35
+        iconView.contentTintColor = enabled ? .secondaryLabelColor : .quaternaryLabelColor
+        toolTip = enabled
+            ? "Drag onto Open/Save panel to navigate"
+            : "Folder unavailable"
+    }
+
+    override func layout() {
+        super.layout()
+        let side: CGFloat = 14
+        iconView.frame = NSRect(
+            x: (bounds.width - side) / 2,
+            y: (bounds.height - side) / 2,
+            width: side,
+            height: side
+        )
+    }
+
+    override func resetCursorRects() {
+        discardCursorRects()
+        if dragEnabled {
+            addCursorRect(bounds, cursor: .openHand)
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard dragEnabled else { return }
+        mouseDownPoint = convert(event.locationInWindow, from: nil)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard dragEnabled, let start = mouseDownPoint else { return }
+        let current = convert(event.locationInWindow, from: nil)
+        let dx = current.x - start.x
+        let dy = current.y - start.y
+        // 系统级拖拽阈值量级，避免和单击抢
+        let threshold: CGFloat = 4
+        guard hypot(dx, dy) >= threshold else { return }
+        mouseDownPoint = nil
+        beginFolderDrag(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        mouseDownPoint = nil
+    }
+
+    private func beginFolderDrag(with event: NSEvent) {
+        let path = (folderPath as NSString).standardizingPath
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
+            onDragRejected?("Can't drag — folder missing")
+            return
+        }
+
+        let url = URL(fileURLWithPath: path, isDirectory: true)
+        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+        let preview = dragPreviewImage(name: displayName.isEmpty ? url.lastPathComponent : displayName)
+        item.setDraggingFrame(bounds, contents: preview)
+
+        let session = beginDraggingSession(with: [item], event: event, source: self)
+        session.animatesToStartingPositionsOnCancelOrFail = true
+    }
+
+    private func dragPreviewImage(name: String) -> NSImage {
+        let folderIcon = NSImage(
+            systemSymbolName: "folder.fill",
+            accessibilityDescription: nil
+        ) ?? NSImage(size: NSSize(width: 16, height: 16))
+        let text = name as NSString
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor
+        ]
+        let textSize = text.size(withAttributes: attrs)
+        let pad: CGFloat = 6
+        let iconSide: CGFloat = 16
+        let size = NSSize(
+            width: pad + iconSide + 4 + ceil(textSize.width) + pad,
+            height: max(iconSide, ceil(textSize.height)) + pad
+        )
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSColor.controlBackgroundColor.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: NSRect(origin: .zero, size: size), xRadius: 6, yRadius: 6).fill()
+        folderIcon.draw(
+            in: NSRect(x: pad, y: (size.height - iconSide) / 2, width: iconSide, height: iconSide),
+            from: .zero,
+            operation: .sourceOver,
+            fraction: 1
+        )
+        text.draw(
+            at: NSPoint(x: pad + iconSide + 4, y: (size.height - textSize.height) / 2),
+            withAttributes: attrs
+        )
+        image.unlockFocus()
+        return image
+    }
+
+    func draggingSession(
+        _ session: NSDraggingSession,
+        sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        // generic：Open/Save 面板认 file URL 导航时常用
+        .generic
+    }
 }
