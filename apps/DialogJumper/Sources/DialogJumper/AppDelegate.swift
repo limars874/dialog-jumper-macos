@@ -6,20 +6,26 @@ import DialogJumperCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let trustReader: any AccessibilityTrustReading
     private let fileDialogDetector: any FileDialogDetecting
+    private let folderJumper: any FolderJumping
     private var statusItem: NSStatusItem!
     private var statusMenuItem: NSMenuItem!
     private var jumpCapabilityMenuItem: NSMenuItem!
     private var fileDialogMenuItem: NSMenuItem!
+    private var jumpToPathMenuItem: NSMenuItem!
+    private var lastJumpMenuItem: NSMenuItem!
     private var authorization: AccessibilityAuthorization = .paused
     private var detectionState: FileDialogDetectionState = .accessibilityPaused
+    private var lastJumpSummary: String = "Last jump: —"
     private var pollTimer: Timer?
 
     init(
         trustReader: any AccessibilityTrustReading,
-        fileDialogDetector: any FileDialogDetecting = FileDialogDetector()
+        fileDialogDetector: any FileDialogDetecting = FileDialogDetector(),
+        folderJumper: any FolderJumping = FolderJumpExecutor()
     ) {
         self.trustReader = trustReader
         self.fileDialogDetector = fileDialogDetector
+        self.folderJumper = folderJumper
         super.init()
     }
 
@@ -51,6 +57,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fileDialogMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         fileDialogMenuItem.isEnabled = false
         menu.addItem(fileDialogMenuItem)
+
+        lastJumpMenuItem = NSMenuItem(title: lastJumpSummary, action: nil, keyEquivalent: "")
+        lastJumpMenuItem.isEnabled = false
+        menu.addItem(lastJumpMenuItem)
+
+        menu.addItem(.separator())
+
+        jumpToPathMenuItem = NSMenuItem(
+            title: "Jump to Path…",
+            action: #selector(jumpToPath),
+            keyEquivalent: "j"
+        )
+        jumpToPathMenuItem.target = self
+        menu.addItem(jumpToPathMenuItem)
 
         menu.addItem(.separator())
 
@@ -105,13 +125,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.title = menuBarGlyph()
         statusMenuItem.title = AccessibilityGate.statusTitle(authorization)
 
-        if AccessibilityGate.isFolderJumpEnabled(authorization) {
-            jumpCapabilityMenuItem.title = "Folder Jump: available (features land in later tickets)"
+        let jumpReady = AccessibilityGate.isFolderJumpEnabled(authorization)
+        if jumpReady {
+            switch detectionState {
+            case .eligible:
+                jumpCapabilityMenuItem.title = "Folder Jump: ready (Path)"
+            case .none:
+                jumpCapabilityMenuItem.title = "Folder Jump: waiting for eligible File Dialog"
+            case .accessibilityPaused:
+                jumpCapabilityMenuItem.title = "Folder Jump: paused until Accessibility is enabled"
+            }
         } else {
             jumpCapabilityMenuItem.title = "Folder Jump: paused until Accessibility is enabled"
         }
 
         fileDialogMenuItem.title = detectionState.menuTitle
+        lastJumpMenuItem.title = lastJumpSummary
+
+        // Ticket 03 UI: menu Path entry when dialog is eligible (toolbar is ticket 04).
+        if case .eligible = detectionState, jumpReady {
+            jumpToPathMenuItem.isEnabled = true
+            jumpToPathMenuItem.title = "Jump to Path…"
+        } else {
+            jumpToPathMenuItem.isEnabled = false
+            jumpToPathMenuItem.title = "Jump to Path… (need eligible File Dialog)"
+        }
     }
 
     private func menuBarGlyph() -> String {
@@ -123,6 +161,115 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .none:
             return AccessibilityGate.shortMenuBarTitle(authorization)
         }
+    }
+
+    @objc private func jumpToPath() {
+        refreshFromSystem()
+        guard case .eligible(let dialog) = detectionState else {
+            presentJumpResult(
+                title: "No File Dialog",
+                message: FolderJumpFailure.noEligibleDialog.userMessage
+            )
+            return
+        }
+        guard AccessibilityGate.isFolderJumpEnabled(authorization) else {
+            presentJumpResult(
+                title: "Accessibility paused",
+                message: FolderJumpFailure.accessibilityPaused.userMessage
+            )
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Jump to Path"
+        alert.informativeText =
+            "Enter an absolute path or ~ path. Dialog Jumper navigates the File Dialog only — it never clicks Open/Save for you."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Jump")
+        alert.addButton(withTitle: "Cancel")
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        field.placeholderString = "/Library/Application Support"
+        field.stringValue = ""
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        let raw = field.stringValue
+        // Re-detect so we do not act on a stale panel after the alert.
+        refreshFromSystem()
+        let liveDialog: EligibleFileDialog?
+        if case .eligible(let current) = detectionState {
+            liveDialog = current
+        } else {
+            liveDialog = dialog
+        }
+
+        let outcome = folderJumper.jump(
+            rawPath: raw,
+            authorization: authorization,
+            dialog: liveDialog
+        )
+
+        switch outcome {
+        case .success(let path, let evidence):
+            lastJumpSummary = "Last jump: ok → \(shortPath(path)) (\(evidence))"
+            applyToUI()
+            presentJumpResult(
+                title: "Jump succeeded",
+                message: "Navigated to:\n\(path)\n\nEvidence: \(evidence)\nOpen/Save was not submitted."
+            )
+        case .failure(let failure):
+            lastJumpSummary = "Last jump: failed — \(shortFailure(failure))"
+            applyToUI()
+            presentJumpResult(
+                title: "Jump did not run",
+                message: failure.userMessage
+            )
+        }
+    }
+
+    private func shortPath(_ path: String) -> String {
+        if path.count <= 48 { return path }
+        return "…" + path.suffix(47)
+    }
+
+    private func shortFailure(_ failure: FolderJumpFailure) -> String {
+        switch failure {
+        case .path(let reason):
+            return reason.rawValue
+        case .accessibilityPaused:
+            return "accessibilityPaused"
+        case .noEligibleDialog:
+            return "noEligibleDialog"
+        case .postEventDenied:
+            return "postEventDenied"
+        case .goToFolderDidNotOpen:
+            return "goToFolderDidNotOpen"
+        case .pathFieldNotFound:
+            return "pathFieldNotFound"
+        case .pathFieldNotWritable:
+            return "pathFieldNotWritable"
+        case .confirmFailed:
+            return "confirmFailed"
+        case .verificationFailed:
+            return "verificationFailed"
+        case .dialogLost:
+            return "dialogLost"
+        case .actionFailed:
+            return "actionFailed"
+        }
+    }
+
+    private func presentJumpResult(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     @objc private func openAccessibilitySettings() {
@@ -153,11 +300,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Dialog Jumper"
         alert.informativeText = """
-        MVP — tickets 01–02.
+        MVP — tickets 01–03.
 
         Folder Jump needs Accessibility only.
-        File Dialog detection uses system Open/Save panel service + AX fingerprint.
-        This build does not request Input Monitoring, Automation, or Full Disk Access.
+        Path Input: absolute or ~ ; strict failure (no search).
+        Jump: ⇧⌘G → PathTextField → directed click → Return.
+        Never submits Open/Save for you.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")

@@ -79,3 +79,8 @@
 - **Did**: 在 `DialogJumperCore` 加入 multi-signal fingerprint + panel service 检测；菜单栏展示 detected/none；`swift test` 10 项通过。
 - **Decided**: 仅 trusted 时检测；OpenPanel/SavePanel 或 window+AXSystemDialog 才 eligible；纯英文 title 不计分。
 - **Refs**: `apps/DialogJumper/Sources/DialogJumperCore/FileDialogDetector.swift`, `.scratch/dialog-jumper-mvp/issues/02-file-dialog-detection.md`
+
+## [2026-07-12] Implement ticket 03 Path Folder Jump
+- **Did**: 落地 `PathResolver` + `FolderJumpExecutor`（锁定 ⇧⌘G → PathTextField → 定向 click → Return）与菜单栏 Path 入口；单测 24 项；`swift test` / `swift build` 通过；ticket 03 标 done（TextEdit 人工项留给 owner）。
+- **Decided**: 03 用菜单 Path 输入，不抢 04 toolbar；严格路径失败不降级搜索；无 location evidence 不报成功；永不代点 Open/Save。
+- **Refs**: `apps/DialogJumper/Sources/DialogJumperCore/PathResolver.swift`, `FolderJumpExecutor.swift`, `.scratch/dialog-jumper-mvp/issues/03-path-folder-jump.md`
