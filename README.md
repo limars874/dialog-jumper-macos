@@ -26,13 +26,12 @@ macOS 菜单栏工具：在**系统标准 Open / Save 对话框**里快速 **Fol
 | **Find** | 当前打开的 Finder 窗口路径（最多 50） | 点 **↻**（需 Automation） |
 | **Zox** | `zoxide query -l` frecency（最多 50） | 点 **↻**（需本机安装 zoxide） |
 
-行操作（Rec / Find / Zox）：
 - **单击**：填 Path；是否立刻 Jump 由菜单 **Jump on List Click** 控制（默认开）
 - **双击**：始终 Jump
+- **左侧拖柄**：拖出文件夹 URL，可拖到 Open/Save 面板上做 **系统原生导航**（与 Jump 点击区分开）
 - **★**：加入 Favorites
 - **⎘**：复制全路径  
 Favorites 行：**↑ ↓ ✕** 排序/删除
-
 ### 菜单栏
 - **DJ** / **DJ!** / **DJ●**（固定宽度，状态切换不抖条）
 - Accessibility / Folder Jump / Last jump 状态
