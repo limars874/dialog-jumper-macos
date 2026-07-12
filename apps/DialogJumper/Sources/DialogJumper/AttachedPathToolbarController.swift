@@ -36,7 +36,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private let chromeSize = CGSize(width: 300, height: 420)
     private let rowHeight: CGFloat = 30
     private let favoriteManageWidth: CGFloat = 52
-    private let recentManageWidth: CGFloat = 56
+    private let recentManageWidth: CGFloat = 46
 
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
         guard case .eligible(let dialog) = detection else {
