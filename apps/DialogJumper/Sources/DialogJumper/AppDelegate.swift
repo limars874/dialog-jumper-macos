@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let trustReader: any AccessibilityTrustReading
     private let fileDialogDetector: any FileDialogDetecting
     private let folderJumper: any FolderJumping
+    private let recents: RecentsRepository
 
     private var statusItem: NSStatusItem!
     private var statusMenu: NSMenu!
@@ -14,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var detectionState: FileDialogDetectionState = .accessibilityPaused
     private var lastJumpSummary = "Last jump: —"
     private var pollTimer: Timer?
+    private var chromeWasShown = false
     private let attachedToolbar = AttachedPathToolbarController()
 
     private enum MenuIndex {
@@ -32,11 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     init(
         trustReader: any AccessibilityTrustReading,
         fileDialogDetector: any FileDialogDetecting = FileDialogDetector(),
-        folderJumper: any FolderJumping = FolderJumpExecutor()
+        folderJumper: any FolderJumping = FolderJumpExecutor(),
+        recents: RecentsRepository = RecentsRepository()
     ) {
         self.trustReader = trustReader
         self.fileDialogDetector = fileDialogDetector
         self.folderJumper = folderJumper
+        self.recents = recents
         super.init()
     }
 
@@ -48,6 +52,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         attachedToolbar.onJump = { [weak self] raw in
             self?.performJump(rawPath: raw)
         }
+        attachedToolbar.onUnavailableRecent = { [weak self] reason in
+            self?.explainUnavailableRecent(reason)
+        }
+        attachedToolbar.setRecents(recents.list())
         // Hide/show chrome as soon as the user switches apps (don't wait for poll).
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -174,8 +182,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if AccessibilityGate.isFolderJumpEnabled(authorization) {
             let showChrome = shouldShowAttachedChrome(for: detectionState)
+            if showChrome {
+                // 仅在 chrome 从隐藏→显示时刷新列表，避免 0.5s 轮询重建行
+                if !chromeWasShown {
+                    attachedToolbar.setRecents(recents.list())
+                }
+                chromeWasShown = true
+            } else {
+                chromeWasShown = false
+            }
             attachedToolbar.sync(to: detectionState, showChrome: showChrome)
         } else {
+            chromeWasShown = false
             attachedToolbar.dismiss()
         }
 
@@ -237,7 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !jumpReady {
             menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: paused (Accessibility)"
         } else if case .eligible = detectionState {
-            menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: ready (Path)"
+            menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: ready (Path + Recents)"
         } else {
             var waiting = "Folder Jump: waiting — panelServices=\(panelCount)"
             if !panelNames.isEmpty { waiting += " {\(panelNames)}" }
@@ -285,6 +303,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch folderJumper.jump(rawPath: rawPath, authorization: authorization, dialog: dialog) {
         case .success(let path, let evidence):
             lastJumpSummary = "Last jump: ok → \(shortPath(path)) (\(evidence))"
+            // 成功 Jump 写入 Recents（Open/Save 落点观察未接，避免假写入）
+            recents.record(url: URL(fileURLWithPath: path, isDirectory: true))
+            attachedToolbar.setRecents(recents.list())
             attachedToolbar.setStatus("Jumped · \(shortPath(path))")
             applyToUI()
         case .failure(let failure):
@@ -297,6 +318,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.addButton(withTitle: "OK")
             alert.runModal()
         }
+    }
+
+    private func explainUnavailableRecent(_ reason: String) {
+        let alert = NSAlert()
+        alert.messageText = "Recent folder unavailable"
+        alert.informativeText = reason
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     private func shortPath(_ path: String) -> String {

@@ -89,3 +89,8 @@
 - **Did**: owner 确认 Path Jump（含粘贴修复）可用；勾 03 人工项。实现 dialog-attached Path side toolbar（04），26 tests 绿。
 - **Decided**: toolbar 为 Path 主入口；成功不弹 modal；菜单仅聚焦 toolbar。
 - **Refs**: `AttachedPathToolbarController.swift`, `FileDialogGeometry.swift`, issues/03–04
+
+## [2026-07-12] Implement ticket 05 Recent Folders
+- **Did**: 落地 `RecentsRepository`（≤10、last-used、path 去重、可用性探测、UserDefaults 持久化）与附着 toolbar Recents 列表；成功 Jump 写入；点选复用 `FolderJumpExecutor`；不可用项标记并说明；33 tests 绿。
+- **Decided**: 仅写成功 Jump，不接 Open/Save 落点观察（跨 app 不可靠）；不做 fuzzy search / Recent Files。
+- **Refs**: `RecentsRepository.swift`, `AttachedPathToolbarController.swift`, `RecentsRepositoryTests.swift`, issues/05
