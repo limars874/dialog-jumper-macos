@@ -5,25 +5,31 @@ import DialogJumperCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let trustReader: any AccessibilityTrustReading
+    private let fileDialogDetector: any FileDialogDetecting
     private var statusItem: NSStatusItem!
     private var statusMenuItem: NSMenuItem!
     private var jumpCapabilityMenuItem: NSMenuItem!
+    private var fileDialogMenuItem: NSMenuItem!
     private var authorization: AccessibilityAuthorization = .paused
+    private var detectionState: FileDialogDetectionState = .accessibilityPaused
     private var pollTimer: Timer?
 
-    init(trustReader: any AccessibilityTrustReading) {
+    init(
+        trustReader: any AccessibilityTrustReading,
+        fileDialogDetector: any FileDialogDetecting = FileDialogDetector()
+    ) {
         self.trustReader = trustReader
+        self.fileDialogDetector = fileDialogDetector
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         configureStatusItem()
-        refreshAuthorizationFromSystem()
-        // Poll so returning from System Settings updates without requiring a click.
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        refreshFromSystem()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.refreshAuthorizationFromSystem()
+                self?.refreshFromSystem()
             }
         }
     }
@@ -41,6 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         jumpCapabilityMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         jumpCapabilityMenuItem.isEnabled = false
         menu.addItem(jumpCapabilityMenuItem)
+
+        fileDialogMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        fileDialogMenuItem.isEnabled = false
+        menu.addItem(fileDialogMenuItem)
 
         menu.addItem(.separator())
 
@@ -83,14 +93,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
     }
 
-    private func refreshAuthorizationFromSystem() {
+    private func refreshFromSystem() {
         let trusted = trustReader.isProcessTrusted()
         authorization = AccessibilityGate.authorization(isProcessTrusted: trusted)
-        applyAuthorizationToUI()
+        // Detection only when trusted — never cross-process AX while paused.
+        detectionState = fileDialogDetector.detect(authorization: authorization)
+        applyToUI()
     }
 
-    private func applyAuthorizationToUI() {
-        statusItem.button?.title = AccessibilityGate.shortMenuBarTitle(authorization)
+    private func applyToUI() {
+        statusItem.button?.title = menuBarGlyph()
         statusMenuItem.title = AccessibilityGate.statusTitle(authorization)
 
         if AccessibilityGate.isFolderJumpEnabled(authorization) {
@@ -98,19 +110,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             jumpCapabilityMenuItem.title = "Folder Jump: paused until Accessibility is enabled"
         }
+
+        fileDialogMenuItem.title = detectionState.menuTitle
+    }
+
+    private func menuBarGlyph() -> String {
+        switch detectionState {
+        case .eligible:
+            return "DJ●"
+        case .accessibilityPaused:
+            return AccessibilityGate.shortMenuBarTitle(.paused)
+        case .none:
+            return AccessibilityGate.shortMenuBarTitle(authorization)
+        }
     }
 
     @objc private func openAccessibilitySettings() {
-        // Optional system prompt; async — never treat return value as granted.
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
-        // Stay honest until recheck sees trusted=true.
-        refreshAuthorizationFromSystem()
+        refreshFromSystem()
     }
 
     @objc private func recheckAccessibility() {
-        refreshAuthorizationFromSystem()
+        refreshFromSystem()
         if authorization == .paused {
             let alert = NSAlert()
             alert.messageText = "Accessibility still off"
@@ -130,9 +153,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Dialog Jumper"
         alert.informativeText = """
-        MVP shell — ticket 01.
+        MVP — tickets 01–02.
 
         Folder Jump needs Accessibility only.
+        File Dialog detection uses system Open/Save panel service + AX fingerprint.
         This build does not request Input Monitoring, Automation, or Full Disk Access.
         """
         alert.alertStyle = .informational

@@ -4,17 +4,16 @@
 实现 Dialog Jumper MVP（依据 handoff-ready spec）。
 
 ## Doing now
-idle；ticket **01** done。
+idle；tickets **01–02** done。
 
 ## Key context
-- Spec：`.scratch/macos-file-dialog-jumper/assets/mvp-spec.md`
-- App：`apps/DialogJumper` — menu bar shell + Accessibility gate
+- App：`apps/DialogJumper` — Accessibility gate + File Dialog detection
 - Run：`cd apps/DialogJumper && swift run DialogJumper`
-- Tickets：`.scratch/dialog-jumper-mvp/issues/`
-- Frontier next：**02 — 标准 File Dialog 检测**（blocked by 01, now done）
+- Detected glyph：`DJ●`；菜单 `File Dialog: detected (open, Host)`
+- Frontier next：**03 — Path Input → Folder Jump**
 
 ## Next
-Claim / implement `02-file-dialog-detection.md`.
+Claim / implement `03-path-folder-jump.md`.
 
 ## Blockers
 (none)

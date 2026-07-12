@@ -74,3 +74,8 @@
 - **Did**: 落地 `apps/DialogJumper` 菜单栏壳 + Accessibility 诚实门禁；Core 可单测；`swift test` / `swift build` 通过。
 - **Decided**: 仅用 `AXIsProcessTrusted` 映射 ready/paused；打开设置时可带 prompt，但不以返回值当已授权。
 - **Refs**: `apps/DialogJumper/`, `.scratch/dialog-jumper-mvp/issues/01-app-shell-accessibility-gate.md`
+
+## [2026-07-12] Implement ticket 02 File Dialog detection
+- **Did**: 在 `DialogJumperCore` 加入 multi-signal fingerprint + panel service 检测；菜单栏展示 detected/none；`swift test` 10 项通过。
+- **Decided**: 仅 trusted 时检测；OpenPanel/SavePanel 或 window+AXSystemDialog 才 eligible；纯英文 title 不计分。
+- **Refs**: `apps/DialogJumper/Sources/DialogJumperCore/FileDialogDetector.swift`, `.scratch/dialog-jumper-mvp/issues/02-file-dialog-detection.md`
