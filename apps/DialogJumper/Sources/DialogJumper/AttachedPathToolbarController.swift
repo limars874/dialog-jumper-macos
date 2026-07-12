@@ -323,20 +323,30 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
-        // 原 16pt 再 +50% → 24pt，便于点中 ★ / 复制
-        let btnW: CGFloat = 24
-        let btnH: CGFloat = 24
-        let midY = (rowHeight - btnH) / 2
+        // ★ 保持 16；仅复制按钮 +50% → 24（用户只嫌复制难点）
+        let starW: CGFloat = 16
+        let starH: CGFloat = 16
+        let copyW: CGFloat = 24
+        let copyH: CGFloat = 24
         let stackX = jumpWidth + 2
 
         let star = makeTinyButton(title: "★", tag: index, action: #selector(recentFavorite(_:)))
-        star.font = .systemFont(ofSize: 14, weight: .semibold)
-        star.frame = NSRect(x: stackX, y: midY, width: btnW, height: btnH)
+        star.frame = NSRect(
+            x: stackX,
+            y: (rowHeight - starH) / 2,
+            width: starW,
+            height: starH
+        )
         star.toolTip = "Add to Favorites"
 
         let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(recentCopyPath(_:)))
         copy.font = .systemFont(ofSize: 14, weight: .semibold)
-        copy.frame = NSRect(x: stackX + 26, y: midY, width: btnW, height: btnH)
+        copy.frame = NSRect(
+            x: stackX + starW + 4,
+            y: (rowHeight - copyH) / 2,
+            width: copyW,
+            height: copyH
+        )
         copy.toolTip = "Copy full path"
 
         container.addSubview(star)
