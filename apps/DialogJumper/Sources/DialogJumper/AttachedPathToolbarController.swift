@@ -281,6 +281,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             updateSegmentTitles()
             if entries.isEmpty {
                 setStatus("No open Finder windows")
+            } else if entries.count >= FinderWindowsReader.capacity {
+                setStatus("Finder · \(entries.count) (max)")
             } else {
                 setStatus("Finder · \(entries.count)")
             }

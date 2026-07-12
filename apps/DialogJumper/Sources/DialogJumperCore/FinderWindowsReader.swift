@@ -32,6 +32,9 @@ public protocol FinderWindowsReading: Sendable {
 
 /// 通过 AppleScript 读 Finder window `target`（会触发 Automation 授权弹窗，若尚未授权）。
 public struct FinderWindowsReader: FinderWindowsReading {
+    /// 列表软上限，避免上百个 Finder 窗拖垮 ↻ / 侧栏。
+    public static let capacity = 50
+
     private let presence: any DirectoryPresenceReading
 
     public init(presence: any DirectoryPresenceReading = FileManagerDirectoryPresenceReader()) {
@@ -82,7 +85,7 @@ public struct FinderWindowsReader: FinderWindowsReading {
         }
 
         let raw = result.stringValue ?? ""
-        let paths = Self.parsePathList(raw)
+        let paths = Array(Self.parsePathList(raw).prefix(Self.capacity))
         let entries = paths.map { path -> FinderFolderEntry in
             let standardized = (path as NSString).standardizingPath
             let name = (standardized as NSString).lastPathComponent
