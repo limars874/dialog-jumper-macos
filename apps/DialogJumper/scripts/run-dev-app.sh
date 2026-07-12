@@ -60,8 +60,8 @@ BIN="$ROOT/.build/arm64-apple-macosx/debug/DialogJumper"
 APP="$ROOT/dist/DialogJumper.app"
 mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/DialogJumper"
-if [[ ! -f "$APP/Contents/Info.plist" ]]; then
-  cat > "$APP/Contents/Info.plist" <<'PLIST'
+# 每次写入完整 Info.plist（含 Automation 用途说明；缺 key 时系统可能不弹授权框）
+cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -76,14 +76,17 @@ if [[ ! -f "$APP/Contents/Info.plist" ]]; then
   <string>Dialog Jumper</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
   <key>LSUIElement</key>
   <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>Dialog Jumper reads open Finder windows so you can jump to those folders in File Dialogs.</string>
 </dict>
 </plist>
 PLIST
-fi
 chmod +x "$APP/Contents/MacOS/DialogJumper"
 
 ensure_dedicated_keychain

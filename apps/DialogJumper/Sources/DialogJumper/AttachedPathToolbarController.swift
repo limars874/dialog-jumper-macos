@@ -299,7 +299,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             finderDidLoadOnce = true
             finderEntries = []
             updateSegmentTitles()
-            setStatus("Finder read failed")
+            let short = message.count > 48 ? String(message.prefix(45)) + "…" : message
+            setStatus("Finder: \(short)")
             #if DEBUG
             NSLog("[DialogJumper] Finder script: %@", message)
             #endif
