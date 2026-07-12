@@ -34,13 +34,19 @@ PLIST
 fi
 chmod +x "$APP/Contents/MacOS/DialogJumper"
 # Replacing the binary invalidates the seal; re-sign only when needed.
-# Ad-hoc re-sign changes CDHash and often drops Accessibility grants — avoid --force every run.
+# Ad-hoc re-sign changes CDHash: Accessibility grant often stops applying to the new binary
+# even if the list still shows “Dialog Jumper” ON (one row, but bound to the old build).
 if ! codesign --verify --quiet "$APP" 2>/dev/null; then
   codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
-  echo "Note: re-signed ad-hoc. You may need to re-enable Accessibility for Dialog Jumper."
+  echo "Note: re-signed ad-hoc (new CDHash). Re-grant Accessibility for this build."
+else
+  # Binary was copied over a valid seal — must re-sign; expect re-grant.
+  codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
+  echo "Note: binary updated + ad-hoc signed. If menu is DJ!, re-authorize this build:"
+  echo "  Settings list: toggle OFF/ON, or delete the row and Request Accessibility again."
 fi
 pkill -x DialogJumper 2>/dev/null || true
 sleep 0.3
 open "$APP"
 echo "Launched: $APP"
-echo "Menu DJ = ready, DJ! = need Accessibility. After enabling, fully Quit and reopen (no rebuild)."
+echo "DJ = ready. DJ! = this process is not trusted (list ON ≠ this build trusted)."

@@ -185,11 +185,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyToUI()
     }
 
-    private func applyToUI() {
-        statusItem.button?.title = menuBarGlyph()
-        statusMenuItem.title = AccessibilityGate.statusTitle(authorization)
-
-        let jumpReady = AccessibilityGate.isFolderJumpEnabled(authorization)
+        } else {
+            jumpCapabilityMenuItem.title =
+                "Folder Jump: paused — Settings ON but still DJ! usually means a new build; Request again or remove & re-add"
+        }
         if jumpReady {
             switch detectionState {
             case .eligible:
