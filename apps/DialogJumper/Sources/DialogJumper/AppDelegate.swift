@@ -2,6 +2,14 @@ import AppKit
 import ApplicationServices
 import DialogJumperCore
 
+/// Menu-bar shell: Accessibility + File Dialog detection + attached Path toolbar.
+///
+/// Accessibility UX (keep simple):
+/// - Never auto-spam system prompt + Settings together.
+/// - "Request Accessibility…" → system prompt only (registers app in list).
+/// - "Open Accessibility Settings…" → Settings only.
+/// - "Relaunch to Apply Accessibility" → always in menu when paused (no extra modal).
+/// - Poll silently; when trusted, menu flips to ready without dialogs.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let trustReader: any AccessibilityTrustReading
@@ -13,14 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var fileDialogMenuItem: NSMenuItem!
     private var jumpToPathMenuItem: NSMenuItem!
     private var lastJumpMenuItem: NSMenuItem!
+    private var requestAccessMenuItem: NSMenuItem!
+    private var openSettingsMenuItem: NSMenuItem!
+    private var relaunchMenuItem: NSMenuItem!
     private var authorization: AccessibilityAuthorization = .paused
     private var detectionState: FileDialogDetectionState = .accessibilityPaused
     private var lastJumpSummary: String = "Last jump: —"
     private var pollTimer: Timer?
     private let attachedToolbar = AttachedPathToolbarController()
-    /// User was sent to Accessibility settings; watch for grant / offer relaunch.
-    private var awaitingAccessibilityGrant = false
-    private var didOfferRelaunchForCurrentWait = false
 
     init(
         trustReader: any AccessibilityTrustReading,
@@ -35,17 +43,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        // Menu-bar apps need a real Edit menu or ⌘V/⌘C/⌘X never reach text fields.
         installMainMenuWithStandardEdit()
         configureStatusItem()
         attachedToolbar.onJump = { [weak self] raw in
             self?.performJump(rawPath: raw, source: "toolbar")
         }
         refreshFromSystem()
-        // If not trusted, register with TCC (often appears in Accessibility list) and open Settings.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-            self?.promptForAccessibilityIfNeeded()
-        }
+        // Quiet start: no auto system prompt / Settings on launch (avoids double dialogs).
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshFromSystem()
@@ -55,10 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         refreshFromSystem()
-        considerAccessibilityGrantFollowUp()
     }
 
-    /// Standard Edit menu so accessory text fields accept ⌘V / ⌘C / ⌘X / ⌘A.
     private func installMainMenuWithStandardEdit() {
         let mainMenu = NSMenu()
 
@@ -88,7 +90,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureStatusItem() {
-        // Fixed length so the item is not zero-width before first title apply.
         statusItem = NSStatusBar.system.statusItem(withLength: 28)
         statusItem.isVisible = true
         statusItem.button?.title = "DJ"
@@ -115,7 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         jumpToPathMenuItem = NSMenuItem(
-            title: "Jump to Path…",
+            title: "Focus Path on Toolbar…",
             action: #selector(jumpToPath),
             keyEquivalent: "j"
         )
@@ -124,21 +125,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        let openSettings = NSMenuItem(
+        // --- Accessibility section (menu-only, no surprise modals) ---
+        requestAccessMenuItem = NSMenuItem(
+            title: "Request Accessibility…",
+            action: #selector(requestAccessibility),
+            keyEquivalent: ""
+        )
+        requestAccessMenuItem.target = self
+        menu.addItem(requestAccessMenuItem)
+
+        openSettingsMenuItem = NSMenuItem(
             title: "Open Accessibility Settings…",
             action: #selector(openAccessibilitySettings),
             keyEquivalent: "s"
         )
-        openSettings.target = self
-        menu.addItem(openSettings)
+        openSettingsMenuItem.target = self
+        menu.addItem(openSettingsMenuItem)
 
-        let recheck = NSMenuItem(
-            title: "Recheck Accessibility",
-            action: #selector(recheckAccessibility),
-            keyEquivalent: "r"
+        relaunchMenuItem = NSMenuItem(
+            title: "Relaunch to Apply Accessibility",
+            action: #selector(relaunchApplication),
+            keyEquivalent: ""
         )
-        recheck.target = self
-        menu.addItem(recheck)
+        relaunchMenuItem.target = self
+        menu.addItem(relaunchMenuItem)
 
         menu.addItem(.separator())
 
@@ -166,13 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshFromSystem() {
         let trusted = trustReader.isProcessTrusted()
         authorization = AccessibilityGate.authorization(isProcessTrusted: trusted)
-        if authorization == .ready {
-            awaitingAccessibilityGrant = false
-            didOfferRelaunchForCurrentWait = false
-        }
-        // Detection only when trusted — never cross-process AX while paused.
         detectionState = fileDialogDetector.detect(authorization: authorization)
-        // Ticket 04: attach/detach side Path chrome to eligible dialogs only.
         if AccessibilityGate.isFolderJumpEnabled(authorization) {
             attachedToolbar.sync(to: detectionState)
         } else {
@@ -196,19 +200,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 jumpCapabilityMenuItem.title = "Folder Jump: paused until Accessibility is enabled"
             }
         } else {
-            jumpCapabilityMenuItem.title = "Folder Jump: paused until Accessibility is enabled"
+            jumpCapabilityMenuItem.title = "Folder Jump: paused — use Request / Settings / Relaunch below"
         }
 
         fileDialogMenuItem.title = detectionState.menuTitle
         lastJumpMenuItem.title = lastJumpSummary
 
-        // Path entry: attached toolbar is primary; menu focuses it when eligible.
         if case .eligible = detectionState, jumpReady {
             jumpToPathMenuItem.isEnabled = true
             jumpToPathMenuItem.title = "Focus Path on Toolbar…"
         } else {
             jumpToPathMenuItem.isEnabled = false
             jumpToPathMenuItem.title = "Focus Path… (need eligible File Dialog)"
+        }
+
+        // Accessibility actions: visible when paused; relaunch still useful after grant.
+        let paused = authorization == .paused
+        requestAccessMenuItem.isHidden = !paused
+        requestAccessMenuItem.isEnabled = paused
+        openSettingsMenuItem.isEnabled = true
+        relaunchMenuItem.isHidden = !paused
+        relaunchMenuItem.isEnabled = paused
+        if paused {
+            relaunchMenuItem.title = "Relaunch to Apply Accessibility"
         }
     }
 
@@ -223,27 +237,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - Path jump
+
     @objc private func jumpToPath() {
         refreshFromSystem()
         guard case .eligible = detectionState,
               AccessibilityGate.isFolderJumpEnabled(authorization)
-        else {
-            presentJumpResult(
-                title: "No eligible File Dialog",
-                message: "Open a standard Open/Save panel first. Side toolbar attaches automatically when detected."
-            )
-            return
-        }
-        // Prefer attached chrome (ticket 04 primary path).
-        if let clip = NSPasteboard.general.string(forType: .string)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-           PathResolver.looksLikePath(clip) {
-            // Prefill is handled when user pastes into toolbar; just focus.
-        }
+        else { return }
         attachedToolbar.focusPathField()
     }
 
-    /// Shared jump path for attached toolbar (and future entries).
     private func performJump(rawPath: String, source: String) {
         refreshFromSystem()
         let liveDialog: EligibleFileDialog?
@@ -264,9 +267,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             lastJumpSummary = "Last jump: ok → \(shortPath(path)) (\(evidence))"
             attachedToolbar.setStatus("Jumped · \(shortPath(path))")
             applyToUI()
-            // Keep success non-modal for toolbar flow; status line + menu summary only.
             if source != "toolbar" {
-                presentJumpResult(
+                presentAlert(
                     title: "Jump succeeded",
                     message: "Navigated to:\n\(path)\n\nEvidence: \(evidence)\nOpen/Save was not submitted."
                 )
@@ -275,10 +277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             lastJumpSummary = "Last jump: failed — \(shortFailure(failure))"
             attachedToolbar.setStatus("Failed · \(shortFailure(failure))")
             applyToUI()
-            presentJumpResult(
-                title: "Jump did not run",
-                message: failure.userMessage
-            )
+            presentAlert(title: "Jump did not run", message: failure.userMessage)
         }
     }
 
@@ -289,32 +288,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func shortFailure(_ failure: FolderJumpFailure) -> String {
         switch failure {
-        case .path(let reason):
-            return reason.rawValue
-        case .accessibilityPaused:
-            return "accessibilityPaused"
-        case .noEligibleDialog:
-            return "noEligibleDialog"
-        case .postEventDenied:
-            return "postEventDenied"
-        case .goToFolderDidNotOpen:
-            return "goToFolderDidNotOpen"
-        case .pathFieldNotFound:
-            return "pathFieldNotFound"
-        case .pathFieldNotWritable:
-            return "pathFieldNotWritable"
-        case .confirmFailed:
-            return "confirmFailed"
-        case .verificationFailed:
-            return "verificationFailed"
-        case .dialogLost:
-            return "dialogLost"
-        case .actionFailed:
-            return "actionFailed"
+        case .accessibilityPaused: return "accessibilityPaused"
+        case .noEligibleDialog: return "noEligibleDialog"
+        case .path: return "path"
+        case .postEventDenied: return "postEventDenied"
+        case .goToFolderDidNotOpen: return "goToFolderDidNotOpen"
+        case .pathFieldNotFound: return "pathFieldNotFound"
+        case .pathFieldNotWritable: return "pathFieldNotWritable"
+        case .confirmFailed: return "confirmFailed"
+        case .verificationFailed: return "verificationFailed"
+        case .dialogLost: return "dialogLost"
+        case .actionFailed: return "actionFailed"
         }
     }
 
-    private func presentJumpResult(title: String, message: String) {
+    private func presentAlert(title: String, message: String) {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
@@ -323,79 +311,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
     }
 
+    // MARK: - Accessibility (menu-driven only)
+
+    /// System prompt only — registers this app in the Accessibility list. Does not open Settings.
+    @objc private func requestAccessibility() {
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+        refreshFromSystem()
+    }
+
+    /// Settings only — no system prompt (avoids double UI).
     @objc private func openAccessibilitySettings() {
-        // Menu: open Settings only (no second system prompt).
-        awaitingAccessibilityGrant = true
-        didOfferRelaunchForCurrentWait = false
         NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
         refreshFromSystem()
     }
 
-    /// Register with TCC (may show system prompt). Never treat return as granted.
-    private func requestAccessibilityTCCRegistration() {
-        awaitingAccessibilityGrant = true
-        didOfferRelaunchForCurrentWait = false
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-    }
-
-    /// Untrusted launch: one system registration prompt only.
-    private func promptForAccessibilityIfNeeded() {
-        refreshFromSystem()
-        guard authorization == .paused else { return }
-        requestAccessibilityTCCRegistration()
-        refreshFromSystem()
-        considerAccessibilityGrantFollowUp()
-    }
-
-    /// After Settings / prompt: if still paused, offer one-click relaunch (OS often needs it).
-    private func considerAccessibilityGrantFollowUp() {
-        guard awaitingAccessibilityGrant else { return }
-        refreshFromSystem()
-        if authorization == .ready {
-            awaitingAccessibilityGrant = false
-            didOfferRelaunchForCurrentWait = false
-            return
-        }
-        guard !didOfferRelaunchForCurrentWait else { return }
-        // Give TCC a moment after the user toggles the switch.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.offerRelaunchIfStillPaused()
-        }
-    }
-
-    private func offerRelaunchIfStillPaused() {
-        guard awaitingAccessibilityGrant, !didOfferRelaunchForCurrentWait else { return }
-        refreshFromSystem()
-        if authorization == .ready {
-            awaitingAccessibilityGrant = false
-            return
-        }
-        didOfferRelaunchForCurrentWait = true
-        let alert = NSAlert()
-        alert.messageText = "Apply Accessibility"
-        alert.informativeText = """
-        macOS often keeps Accessibility off for the running process until Dialog Jumper restarts.
-
-        If you already enabled Dialog Jumper in System Settings, click Relaunch — no need to hunt for Quit manually.
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Relaunch Dialog Jumper")
-        alert.addButton(withTitle: "Not yet")
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            relaunchApplication()
-        }
-    }
-
-    /// Quit and reopen the same .app so TCC trust is picked up.
-    private func relaunchApplication() {
+    /// Restart same .app so TCC trust applies to a new process.
+    @objc private func relaunchApplication() {
         let appURL = Bundle.main.bundleURL
-        // Only relaunch when running as a real .app (dev dist bundle).
         guard appURL.pathExtension == "app" else {
-            presentJumpResult(
-                title: "Relaunch from the app bundle",
-                message: "Run via apps/DialogJumper/scripts/run-dev-app.sh (dist/DialogJumper.app), then enable Accessibility and use Relaunch."
+            presentAlert(
+                title: "Use the app bundle",
+                message: "Launch via apps/DialogJumper/scripts/run-dev-app.sh (dist/DialogJumper.app)."
             )
             return
         }
@@ -404,7 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.openApplication(at: appURL, configuration: config) { _, error in
             if let error {
                 DispatchQueue.main.async {
-                    self.presentJumpResult(title: "Relaunch failed", message: error.localizedDescription)
+                    self.presentAlert(title: "Relaunch failed", message: error.localizedDescription)
                 }
                 return
             }
@@ -414,44 +351,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func recheckAccessibility() {
-        refreshFromSystem()
-        if authorization == .ready {
-            awaitingAccessibilityGrant = false
-            return
-        }
-        // Product path: offer relaunch / settings, not “you must manually restart”.
-        let alert = NSAlert()
-        alert.messageText = "Accessibility still off"
-        alert.informativeText = """
-        1) Enable “Dialog Jumper” in System Settings → Privacy & Security → Accessibility.
-        2) If it is already on, click Relaunch so macOS applies trust to this process.
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Relaunch Dialog Jumper")
-        alert.addButton(withTitle: "Open Settings…")
-        alert.addButton(withTitle: "Cancel")
-        let response = alert.runModal()
-        switch response {
-        case .alertFirstButtonReturn:
-            relaunchApplication()
-        case .alertSecondButtonReturn:
-            openAccessibilitySettings()
-        default:
-            break
-        }
-    }
-
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "Dialog Jumper"
         alert.informativeText = """
-        MVP — tickets 01–03.
+        MVP — tickets 01–04.
+
+        Accessibility (when paused):
+        1) Request Accessibility…  (system prompt / list entry)
+        2) Turn on “Dialog Jumper” in the list (only this dist app)
+        3) Relaunch to Apply Accessibility  (menu item — no extra modal)
 
         Folder Jump needs Accessibility only.
-        Path Input: absolute or ~ ; strict failure (no search).
-        Jump: ⇧⌘G → PathTextField → directed click → Return.
-        Never submits Open/Save for you.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
