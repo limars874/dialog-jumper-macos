@@ -1,29 +1,39 @@
 # Dialog Jumper (macOS)
 
-MVP product code. Spec: `../../.scratch/macos-file-dialog-jumper/assets/mvp-spec.md`
+在系统 **Open / Save** 对话框旁附着侧栏，做 Folder Jump（不代点 Open/Save）。
+
+产品总览与功能列表见仓库根目录 [`README.md`](../../README.md)。  
+规格：[`mvp-spec.md`](../../.scratch/macos-file-dialog-jumper/assets/mvp-spec.md)
+
+## 功能摘要
+
+- **Jump**：Path 输入 + 列表点选 → 系统 Go to Folder 链（⇧⌘G…）
+- **Rec / Fav / Find / Zox** 四个 path 源（Find=打开的 Finder 窗，Zox=`zoxide query -l`）
+- 行：**★** 收藏 · **⎘** 复制 · Favorites **↑↓✕**
+- 菜单 **Jump on List Click**（单击是否 Jump；双击始终 Jump）
+- 菜单栏 **DJ / DJ! / DJ●**；Accessibility 撤销可恢复
 
 ## Run
-
-Prefer the signed bundle (stable GUI + Accessibility identity):
 
 ```bash
 ./scripts/run-dev-app.sh
 ```
 
-Bare `swift run DialogJumper` may work for compile checks but is not the preferred TCC identity path.
+需要：系统设置 → 隐私与安全性 → **辅助功能**。  
+Finder tab 另需 **自动化 → Dialog Jumper 控制 Finder**。  
+Zox tab 需要本机已装 **zoxide**（Homebrew / `~/.local/bin` 等）。
 
-Menu bar:
+`swift run DialogJumper` 仅适合编译检查；TCC 身份以签名 bundle 为准。
 
-- **DJ** — Accessibility ready, no eligible File Dialog
-- **DJ!** — Accessibility paused
-- **DJ●** — eligible standard File Dialog detected
+## Menu bar
 
-Menu:
+| Glyph | 含义 |
+| --- | --- |
+| **DJ** | Accessibility ready，无 eligible File Dialog |
+| **DJ!** | Accessibility paused / revoked |
+| **DJ●** | 已检测到标准 File Dialog |
 
-- Accessibility · Folder Jump · Last jump（干净状态行）
-- **Focus Path on Toolbar…** when eligible
-- **Recheck** / Open Settings / Relaunch（无单独 Request）
-- About · Quit
+菜单：状态行 · Focus Path · **Jump on List Click** · Recheck · Settings · Relaunch · About · Quit
 
 ## Test
 
@@ -32,24 +42,20 @@ swift test
 swift build
 ```
 
-## Manual Path jump (TextEdit)
+## Manual smoke (TextEdit)
 
-1. Enable Dialog Jumper under System Settings → Privacy & Security → Accessibility.
-2. `./scripts/run-dev-app.sh`
-3. Open TextEdit → File → Open…
-4. When menu bar shows `DJ●`, use the side toolbar Path field (or menu Focus Path).
-5. Enter `/Library/Application Support` (space in path) → Jump
-6. Confirm the Open panel is at that folder; Open is **not** pressed for you.
+1. `./scripts/run-dev-app.sh`，勾选 Accessibility  
+2. TextEdit → 打开…  
+3. Path：`/Library/Application Support` → Jump（含空格路径）  
+4. 确认面板已到该目录，且 **Open 未被代点**  
+5. 可选：Zox ↻、Find ↻、Favorites ★  
 
-## Support-matrix pack
+## Support matrix
 
-Minimal lab acceptance + PASS/REQ honesty:
-
-`../../.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`
+[`.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`](../../.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md)
 
 ## Tickets
 
-- 01–06 done (shell, detection, path jump, toolbar, recents, favorites)
-- 07 cancelled (no global shortcut)
-- 08 done (runtime failure / revoke recovery)
-- 09 done (support-matrix MVP pack)
+- 01–06 / 08 / 09 done  
+- 07 cancelled（无全局热键）  
+- 后续 polish（列表 UI、Finder、Zoxide、Jump on List Click）已在 `main`
