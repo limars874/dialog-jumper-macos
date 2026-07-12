@@ -92,17 +92,14 @@ public struct FileDialogDetector: FileDialogDetecting {
               let open = localizedName.firstIndex(of: "("),
               let close = localizedName.lastIndex(of: ")"),
               open < close
-        else { return nil }
-        let inner = localizedName[localizedName.index(after: open)..<close]
-        let name = String(inner).trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.isEmpty ? nil : name
-    }
-
     private func isPanelVisiblyOpen(pid: pid_t) -> Bool {
+        // Only on-screen windows. optionAll would keep chrome after Cancel/Jump
+        // when the panel service leaves off-screen leftovers.
         if let size = largestCGSize(pid: pid, onScreenOnly: true), size.width > 200, size.height > 150 {
             return true
         }
-        if let size = largestCGSize(pid: pid, onScreenOnly: false), size.width > 200, size.height > 150 {
+        return hasLargeAXWindow(pid: pid)
+    }
             return true
         }
         return hasLargeAXWindow(pid: pid)
