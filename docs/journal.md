@@ -154,3 +154,12 @@
 - **Did**: 第 4 tab **Zox**；↻ → `zoxide query -l`（扫 Homebrew/local bin PATH）；cap 50；Jump/★/复制同 Recents。
 - **Decided**: 重度 zoxide/yazi 用户的主 path 来源；不轮询；未安装时 status `zoxide not found`。
 - **Refs**: `ZoxideReader.swift`, commit `3ff30c6`
+
+## [2026-07-12] Jump on List Click + 列表拖柄原生导航
+- **Did**: 菜单勾选「Jump on List Click」（默认开；关则单击只填 Path，双击仍 Jump）。列表行左侧专用拖柄，pasteboard 写 folder file URL + NSFilenames；拖到 Open/Save 走系统原生导航。侧栏顶对齐按整窗高度（修标题栏高出一截）。
+- **Decided**: 多侧栏不做（外部意见：问题多划不来）。拖放作第二条导航通道，与 AX Jump 并存。
+- **Refs**: `AttachedPathToolbarController`, `AppDelegate`, commits `0c886e8`…`fc7c0e3`
+
+## [2026-07-12] memory：progress/journal 再对齐
+- **Did**: 更新 progress 含拖柄、Jump on List Click、几何顶对齐、多侧栏否决；journal 记上。
+- **Refs**: `docs/progress.md`, `docs/journal.md`
