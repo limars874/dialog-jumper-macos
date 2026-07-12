@@ -1,4 +1,5 @@
 import DialogJumperCore
+import Foundation
 import Testing
 
 @Suite struct ZoxideReaderTests {
