@@ -7,13 +7,10 @@ public protocol FileDialogDetecting: Sendable {
 }
 
 /// Detects system Open/Save panels.
-///
-/// The panel XPC service often stays alive after Cancel. Eligibility requires a
-/// **visible on-screen** large window (or large AX window), never process-only.
+/// Host identity is taken from the panel service name "(TextEdit)", never from current frontmost app.
 public struct FileDialogDetector: FileDialogDetecting {
     public init() {}
 
-    public func detect(authorization: AccessibilityAuthorization) -> FileDialogDetectionState {
     public func detect(authorization: AccessibilityAuthorization) -> FileDialogDetectionState {
         guard authorization == .ready else { return .accessibilityPaused }
 
@@ -30,11 +27,8 @@ public struct FileDialogDetector: FileDialogDetecting {
             let pid = application.processIdentifier
             guard isPanelVisiblyOpen(pid: pid) else { continue }
 
-            // Host identity comes from the panel service name, NOT current frontmost app.
-            // (Using frontmost as host made chrome stay when switching to another app.)
             let serviceHostName = hostNameFromPanelService(application.localizedName)
             let hostApp = resolvedHostApplication(named: serviceHostName)
-
             let hit = bestEligibleWindow(pid: pid)
                 ?? FileDialogFingerprintScore(
                     points: 2,
@@ -68,11 +62,7 @@ public struct FileDialogDetector: FileDialogDetecting {
 
         if let pid = cgVisiblePanelServicePID() {
             let hit = bestEligibleWindow(pid: pid)
-                ?? FileDialogFingerprintScore(
-                    points: 2,
-                    reasons: ["cgOnScreenPanel"],
-                    panelKind: .unknown
-                )
+                ?? FileDialogFingerprintScore(points: 2, reasons: ["cgOnScreenPanel"], panelKind: .unknown)
             return .eligible(
                 EligibleFileDialog(
                     panelPID: pid,
@@ -84,7 +74,6 @@ public struct FileDialogDetector: FileDialogDetecting {
                 )
             )
         }
-
         return .none
     }
 
@@ -94,11 +83,6 @@ public struct FileDialogDetector: FileDialogDetecting {
         return NSWorkspace.shared.runningApplications.first {
             ($0.localizedName ?? "").lowercased() == lower
         }
-    }
-            )
-        }
-
-        return .none
     }
 
     private func inferKind(_ name: String?) -> FileDialogFingerprintScore.PanelKind {
@@ -119,7 +103,6 @@ public struct FileDialogDetector: FileDialogDetecting {
         return name.isEmpty ? nil : name
     }
 
-    /// Process alive ≠ panel open. Cancel leaves the service running.
     private func isPanelVisiblyOpen(pid: pid_t) -> Bool {
         if let size = largestOnScreenCGSize(pid: pid), size.width > 200, size.height > 150 {
             return true
@@ -209,7 +192,6 @@ public struct FileDialogDetector: FileDialogDetecting {
         if let main = axElement(application, kAXMainWindowAttribute as CFString) {
             candidates.insert(main, at: 0)
         }
-
         var best: FileDialogFingerprintScore?
         var seen = Set<CFHashCode>()
         for window in candidates {
@@ -223,15 +205,11 @@ public struct FileDialogDetector: FileDialogDetecting {
             )
             let score = FileDialogFingerprint.score(signals)
             guard score.isEligible else { continue }
-            if best == nil || score.points > best!.points {
-                best = score
-            }
+            if best == nil || score.points > best!.points { best = score }
         }
         return best
     }
 }
-
-// MARK: - AX helpers
 
 private func axCopy(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?

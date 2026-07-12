@@ -1,7 +1,6 @@
 import AppKit
 import DialogJumperCore
 
-/// Floating side chrome attached to an eligible File Dialog (Path only for ticket 04).
 final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     var onJump: ((String) -> Void)?
 
@@ -11,9 +10,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var attachedPID: pid_t?
     private let chromeSize = CGSize(width: 280, height: 132)
 
-    /// - Parameters:
-    ///   - detection: current File Dialog detection
-    ///   - showChrome: false when dialog exists but host is not frontmost (hide, don't destroy state)
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
         guard case .eligible(let dialog) = detection else {
             dismiss()
@@ -30,15 +26,15 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         showOrUpdate(dialog: dialog, frame: frame)
     }
 
-    private func hideChromePreservingState() {
-        guard let panel else { return }
-        panel.orderOut(nil)
-        panel.alphaValue = 0
-    }
-
     func dismiss() {
         panel?.orderOut(nil)
+        panel?.alphaValue = 0
         attachedPID = nil
+    }
+
+    private func hideChromePreservingState() {
+        panel?.orderOut(nil)
+        panel?.alphaValue = 0
     }
 
     func setStatus(_ text: String) {
@@ -54,6 +50,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             pathField.stringValue = clip
         }
         NSApp.activate(ignoringOtherApps: true)
+        panel.alphaValue = 1
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(pathField)
         pathField.currentEditor()?.selectAll(nil)
@@ -95,7 +92,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        // canJoinAllSpaces and moveToActiveSpace are mutually exclusive — combining them throws and breaks the status menu.
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.becomesKeyOnlyIfNeeded = true
 
@@ -153,7 +149,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 
     @objc private func jumpFromField() {
-        let raw = pathField?.stringValue ?? ""
-        onJump?(raw)
+        onJump?(pathField?.stringValue ?? "")
     }
 }
