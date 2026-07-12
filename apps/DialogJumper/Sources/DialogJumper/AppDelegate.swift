@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        terminateOtherInstances()
         installMainMenuWithStandardEdit()
         configureStatusItem()
         attachedToolbar.onJump = { [weak self] raw in
@@ -51,6 +52,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshFromSystem()
+            }
+        }
+    }
+
+    /// Prevent double menu-bar icons after a botched relaunch.
+    private func terminateOtherInstances() {
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        let myBundle = Bundle.main.bundleIdentifier
+        for app in NSWorkspace.shared.runningApplications {
+            let sameBundle = (myBundle != nil && app.bundleIdentifier == myBundle)
+            let samePath = app.bundleURL == Bundle.main.bundleURL
+            if (sameBundle || samePath), app.processIdentifier != myPID {
+                app.terminate()
             }
         }
     }
@@ -308,19 +322,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             return
         }
-        let config = NSWorkspace.OpenConfiguration()
-        config.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: appURL, configuration: config) { _, error in
-            if let error {
-                DispatchQueue.main.async {
-                    self.presentAlert(title: "Relaunch failed", message: error.localizedDescription)
-                }
-                return
-            }
-            DispatchQueue.main.async {
-                NSApp.terminate(nil)
-            }
-        }
+        // Quit first, then open — never create a second instance while this one lives.
+        let path = appURL.path
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 0.4; /usr/bin/open \"\(path)\""]
+        try? task.run()
+        NSApp.terminate(nil)
     }
 
     @objc private func showAbout() {
