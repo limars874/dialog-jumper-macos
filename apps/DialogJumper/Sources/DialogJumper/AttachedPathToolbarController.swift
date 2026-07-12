@@ -87,6 +87,9 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
     func setStatus(_ text: String) {
         statusLabel?.stringValue = text
+        statusLabel?.toolTip = text.isEmpty ? nil : text
+        // 有内容时略提对比度，空则保持 secondary
+        statusLabel?.textColor = text.isEmpty ? .secondaryLabelColor : .labelColor
     }
 
     /// Refresh Recents rows (call after successful jump / on show).
@@ -174,13 +177,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let w = chromeSize.width
         let h = chromeSize.height
 
-        // 顶区：短状态 + Path + 按钮
-        let status = makeLabel("", bold: false, size: 10)
+        // 顶区：状态条（加高可见）+ Path + 按钮 + segment
+        let status = makeLabel("", bold: false, size: 11)
         status.textColor = .secondaryLabelColor
-        status.frame = NSRect(x: 12, y: h - 22, width: w - 24, height: 14)
+        status.usesSingleLineMode = true
+        status.maximumNumberOfLines = 1
+        status.lineBreakMode = .byTruncatingTail
+        status.cell?.lineBreakMode = .byTruncatingTail
+        status.toolTip = nil
+        status.frame = NSRect(x: 12, y: h - 28, width: w - 24, height: 16)
         statusLabel = status
 
-        let field = NSTextField(frame: NSRect(x: 12, y: h - 52, width: w - 24, height: 24))
+        let field = NSTextField(frame: NSRect(x: 12, y: h - 58, width: w - 24, height: 24))
         field.placeholderString = "Paste path…  / or ~"
         field.isEditable = true
         field.isSelectable = true
@@ -191,13 +199,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         field.action = #selector(jumpFromField)
         pathField = field
 
-        let jump = NSButton(frame: NSRect(x: 12, y: h - 88, width: 72, height: 28))
+        let jump = NSButton(frame: NSRect(x: 12, y: h - 94, width: 72, height: 28))
         jump.title = "Jump"
         jump.bezelStyle = .rounded
         jump.target = self
         jump.action = #selector(jumpFromField)
 
-        let add = NSButton(frame: NSRect(x: 90, y: h - 88, width: 108, height: 28))
+        let add = NSButton(frame: NSRect(x: 90, y: h - 94, width: 108, height: 28))
         add.title = "★ Favorite"
         add.bezelStyle = .rounded
         add.target = self
@@ -217,10 +225,10 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         segment.target = self
         segment.action = #selector(listTabChanged(_:))
         segment.selectedSegment = ListTab.recents.rawValue
-        segment.frame = NSRect(x: 12, y: h - 124, width: w - 24 - 30, height: 24)
+        segment.frame = NSRect(x: 12, y: h - 130, width: w - 24 - 30, height: 24)
         listSegment = segment
 
-        let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 124, width: 26, height: 24))
+        let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 130, width: 26, height: 24))
         refresh.glyph = "↻"
         refresh.glyphFontSize = 14
         refresh.toolTip = "Refresh"
@@ -239,7 +247,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         listDocument = doc
 
         let listBottom: CGFloat = 12
-        let listTop = h - 136
+        let listTop = h - 142
         let scroll = NSScrollView(frame: NSRect(x: 8, y: listBottom, width: w - 16, height: listTop - listBottom))
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = false
