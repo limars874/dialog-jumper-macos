@@ -162,7 +162,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         applyToUI()
 
         if AccessibilityGate.isFolderJumpEnabled(authorization) {
-            attachedToolbar.sync(to: detectionState)
+            let showChrome = shouldShowAttachedChrome(for: detectionState)
+            attachedToolbar.sync(to: detectionState, showChrome: showChrome)
         } else {
             attachedToolbar.dismiss()
         }
@@ -175,6 +176,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 FileDialogFingerprint.isOpenAndSavePanelService(bundleIdentifier: $0.bundleIdentifier)
             }.count
         )
+    }
+
+    /// Show floating chrome only while the File Dialog's host (or panel service) is frontmost.
+    /// Switching to another app hides chrome; Cancel/close removes eligibility entirely.
+    private func shouldShowAttachedChrome(for detection: FileDialogDetectionState) -> Bool {
+        guard case .eligible(let dialog) = detection else { return false }
+        guard let front = NSWorkspace.shared.frontmostApplication else { return false }
+
+        // Panel service itself is key.
+        if front.processIdentifier == dialog.panelPID { return true }
+        if FileDialogFingerprint.isOpenAndSavePanelService(bundleIdentifier: front.bundleIdentifier) {
+            return true
+        }
+        // Host app (e.g. TextEdit) is frontmost.
+        if let hostBundle = dialog.hostBundleIdentifier,
+           front.bundleIdentifier == hostBundle {
+            return true
+        }
+        if let hostName = dialog.hostName?.lowercased(),
+           let frontName = front.localizedName?.lowercased(),
+           frontName == hostName {
+            return true
+        }
+        return false
     }
 
     private func applyToUI() {

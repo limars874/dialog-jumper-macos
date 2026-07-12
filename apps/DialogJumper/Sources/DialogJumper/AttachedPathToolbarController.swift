@@ -11,13 +11,22 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var attachedPID: pid_t?
     private let chromeSize = CGSize(width: 280, height: 132)
 
-    func sync(to detection: FileDialogDetectionState) {
-        guard case .eligible(let dialog) = detection else {
-            dismiss()
+    /// - Parameters:
+    ///   - detection: current File Dialog detection
+    ///   - showChrome: false when dialog exists but host is not frontmost (hide, don't destroy state)
+    func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
+        guard case .eligible(let dialog) = detection, showChrome else {
+            // Hide only — path text can remain for when user returns to the dialog.
+            panel?.orderOut(nil)
+            if case .eligible = detection {
+                // keep attachedPID for continuity
+            } else {
+                attachedPID = nil
+            }
             return
         }
         guard let frame = FileDialogGeometry.frame(forPanelPID: dialog.panelPID) else {
-            dismiss()
+            panel?.orderOut(nil)
             return
         }
         showOrUpdate(dialog: dialog, frame: frame)
