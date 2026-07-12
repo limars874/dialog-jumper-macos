@@ -11,7 +11,7 @@
 - [x] 成功判定需位置证据（回读或等价验证）；无证据不声称成功
 - [x] 不存在 / 非文件夹 / 不可达 / 未挂载：不 jump，说明原因
 - [x] 永不代用户提交 Open/Save
-- [ ] 人工可复现：TextEdit Open → 含空格路径（如 `/Library/Application Support`）跳转成功
+- [x] 人工可复现：TextEdit Open → 含空格路径（如 `/Library/Application Support`）跳转成功
 
 ## Implementation notes
 

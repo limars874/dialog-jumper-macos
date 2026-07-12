@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var detectionState: FileDialogDetectionState = .accessibilityPaused
     private var lastJumpSummary: String = "Last jump: —"
     private var pollTimer: Timer?
+    private let attachedToolbar = AttachedPathToolbarController()
 
     init(
         trustReader: any AccessibilityTrustReading,
@@ -34,8 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu-bar apps need a real Edit menu or ⌘V/⌘C/⌘X never reach text fields.
         installMainMenuWithStandardEdit()
         configureStatusItem()
+        attachedToolbar.onJump = { [weak self] raw in
+            self?.performJump(rawPath: raw, source: "toolbar")
+        }
         refreshFromSystem()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshFromSystem()
             }
@@ -149,6 +153,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         authorization = AccessibilityGate.authorization(isProcessTrusted: trusted)
         // Detection only when trusted — never cross-process AX while paused.
         detectionState = fileDialogDetector.detect(authorization: authorization)
+        // Ticket 04: attach/detach side Path chrome to eligible dialogs only.
+        if AccessibilityGate.isFolderJumpEnabled(authorization) {
+            attachedToolbar.sync(to: detectionState)
+        } else {
+            attachedToolbar.dismiss()
+        }
         applyToUI()
     }
 
@@ -173,13 +183,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fileDialogMenuItem.title = detectionState.menuTitle
         lastJumpMenuItem.title = lastJumpSummary
 
-        // Ticket 03 UI: menu Path entry when dialog is eligible (toolbar is ticket 04).
+        // Path entry: attached toolbar is primary; menu focuses it when eligible.
         if case .eligible = detectionState, jumpReady {
             jumpToPathMenuItem.isEnabled = true
-            jumpToPathMenuItem.title = "Jump to Path…"
+            jumpToPathMenuItem.title = "Focus Path on Toolbar…"
         } else {
             jumpToPathMenuItem.isEnabled = false
-            jumpToPathMenuItem.title = "Jump to Path… (need eligible File Dialog)"
+            jumpToPathMenuItem.title = "Focus Path… (need eligible File Dialog)"
         }
     }
 
@@ -196,71 +206,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func jumpToPath() {
         refreshFromSystem()
-        guard case .eligible(let dialog) = detectionState else {
+        guard case .eligible = detectionState,
+              AccessibilityGate.isFolderJumpEnabled(authorization)
+        else {
             presentJumpResult(
                 title: "No eligible File Dialog",
-                message: "Open a standard Open/Save panel first (menu shows File Dialog: detected)."
+                message: "Open a standard Open/Save panel first. Side toolbar attaches automatically when detected."
             )
             return
         }
-        guard AccessibilityGate.isFolderJumpEnabled(authorization) else {
-            presentJumpResult(
-                title: "Accessibility paused",
-                message: FolderJumpFailure.accessibilityPaused.userMessage
-            )
-            return
-        }
-
-        // Become active key app so the path field can receive ⌘V (paste).
-        NSApp.activate(ignoringOtherApps: true)
-
-        let alert = NSAlert()
-        alert.messageText = "Jump to Path"
-        alert.informativeText =
-            "Paste or type an absolute path or ~ path. ⌘V works. Dialog Jumper only navigates the File Dialog — it never clicks Open/Save for you."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Jump")
-        alert.addButton(withTitle: "Cancel")
-
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 420, height: 24))
-        field.placeholderString = "/Library/Application Support"
-        field.isEditable = true
-        field.isSelectable = true
-        field.usesSingleLineMode = true
-        field.cell?.isScrollable = true
-        // Prefill clipboard when it already looks like a path.
+        // Prefer attached chrome (ticket 04 primary path).
         if let clip = NSPasteboard.general.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
            PathResolver.looksLikePath(clip) {
-            field.stringValue = clip
-        } else {
-            field.stringValue = ""
+            // Prefill is handled when user pastes into toolbar; just focus.
         }
-        alert.accessoryView = field
-        alert.layout()
-        alert.window.initialFirstResponder = field
+        attachedToolbar.focusPathField()
+    }
 
-        // After the alert is on screen, force focus so paste targets the field.
-        DispatchQueue.main.async {
-            alert.window.makeFirstResponder(field)
-            field.currentEditor()?.selectAll(nil)
-        }
-
-        let response = alert.runModal()
-        guard response == .alertFirstButtonReturn else { return }
-
-        let raw = field.stringValue
-        // Re-detect so we do not act on a stale panel after the alert.
+    /// Shared jump path for attached toolbar (and future entries).
+    private func performJump(rawPath: String, source: String) {
         refreshFromSystem()
         let liveDialog: EligibleFileDialog?
         if case .eligible(let current) = detectionState {
             liveDialog = current
         } else {
-            liveDialog = dialog
+            liveDialog = nil
         }
 
         let outcome = folderJumper.jump(
-            rawPath: raw,
+            rawPath: rawPath,
             authorization: authorization,
             dialog: liveDialog
         )
@@ -268,13 +243,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch outcome {
         case .success(let path, let evidence):
             lastJumpSummary = "Last jump: ok → \(shortPath(path)) (\(evidence))"
+            attachedToolbar.setStatus("Jumped · \(shortPath(path))")
             applyToUI()
-            presentJumpResult(
-                title: "Jump succeeded",
-                message: "Navigated to:\n\(path)\n\nEvidence: \(evidence)\nOpen/Save was not submitted."
-            )
+            // Keep success non-modal for toolbar flow; status line + menu summary only.
+            if source != "toolbar" {
+                presentJumpResult(
+                    title: "Jump succeeded",
+                    message: "Navigated to:\n\(path)\n\nEvidence: \(evidence)\nOpen/Save was not submitted."
+                )
+            }
         case .failure(let failure):
             lastJumpSummary = "Last jump: failed — \(shortFailure(failure))"
+            attachedToolbar.setStatus("Failed · \(shortFailure(failure))")
             applyToUI()
             presentJumpResult(
                 title: "Jump did not run",

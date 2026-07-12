@@ -84,3 +84,8 @@
 - **Did**: 落地 `PathResolver` + `FolderJumpExecutor`（锁定 ⇧⌘G → PathTextField → 定向 click → Return）与菜单栏 Path 入口；单测 24 项；`swift test` / `swift build` 通过；ticket 03 标 done（TextEdit 人工项留给 owner）。
 - **Decided**: 03 用菜单 Path 输入，不抢 04 toolbar；严格路径失败不降级搜索；无 location evidence 不报成功；永不代点 Open/Save。
 - **Refs**: `apps/DialogJumper/Sources/DialogJumperCore/PathResolver.swift`, `FolderJumpExecutor.swift`, `.scratch/dialog-jumper-mvp/issues/03-path-folder-jump.md`
+
+## [2026-07-12] Ticket 03 手测通过 + 实现 04 附着 toolbar
+- **Did**: owner 确认 Path Jump（含粘贴修复）可用；勾 03 人工项。实现 dialog-attached Path side toolbar（04），26 tests 绿。
+- **Decided**: toolbar 为 Path 主入口；成功不弹 modal；菜单仅聚焦 toolbar。
+- **Refs**: `AttachedPathToolbarController.swift`, `FileDialogGeometry.swift`, issues/03–04
