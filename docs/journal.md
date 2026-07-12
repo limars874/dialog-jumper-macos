@@ -94,3 +94,13 @@
 - **Did**: 落地 `RecentsRepository`（≤10、last-used、path 去重、可用性探测、UserDefaults 持久化）与附着 toolbar Recents 列表；成功 Jump 写入；点选复用 `FolderJumpExecutor`；不可用项标记并说明；33 tests 绿。
 - **Decided**: 仅写成功 Jump，不接 Open/Save 落点观察（跨 app 不可靠）；不做 fuzzy search / Recent Files。
 - **Refs**: `RecentsRepository.swift`, `AttachedPathToolbarController.swift`, `RecentsRepositoryTests.swift`, issues/05
+
+## [2026-07-12] 记录 subagent 派工 brief 风格
+- **Did**: 写入后挪到 `docs/notes/subagent-dispatch.md`（`docs/notes/` = 非流程真相源的工作备忘）。
+- **Decided**: 实现票默认 task + 详细 brief + progress/ticket 外部记忆；fork 留给需聊天快照的对照实验。
+- **Refs**: `docs/notes/subagent-dispatch.md`, ImplTicket03/05
+
+## [2026-07-12] Implement ticket 06 Favorite Folders
+- **Did**: 落地 `FavoritesRepository`（显式顺序、path 去重、软上限 40、可选 bookmark、UserDefaults 持久化）与 toolbar Favorites 列表（★ 添加、↑↓✕ 管理、整行 jump）；复用 full-hit row + `.activeAlways` tracking；43 tests 绿。
+- **Decided**: 添加入口以 Path 字段 ★ Favorite 为主；bookmark 尽力存储但身份仍以标准化 path 为主；不接 Finder 边栏同步。同 commit 保留 ticket 05 后未提交的 Recents 整行 hit-test/hover UX。
+- **Refs**: `FavoritesRepository.swift`, `AttachedPathToolbarController.swift`, `FavoritesRepositoryTests.swift`, issues/06

@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let fileDialogDetector: any FileDialogDetecting
     private let folderJumper: any FolderJumping
     private let recents: RecentsRepository
+    private let favorites: FavoritesRepository
 
     private var statusItem: NSStatusItem!
     private var statusMenu: NSMenu!
@@ -35,12 +36,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         trustReader: any AccessibilityTrustReading,
         fileDialogDetector: any FileDialogDetecting = FileDialogDetector(),
         folderJumper: any FolderJumping = FolderJumpExecutor(),
-        recents: RecentsRepository = RecentsRepository()
+        recents: RecentsRepository = RecentsRepository(),
+        favorites: FavoritesRepository = FavoritesRepository()
     ) {
         self.trustReader = trustReader
         self.fileDialogDetector = fileDialogDetector
         self.folderJumper = folderJumper
         self.recents = recents
+        self.favorites = favorites
         super.init()
     }
 
@@ -55,7 +58,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         attachedToolbar.onUnavailableRecent = { [weak self] reason in
             self?.explainUnavailableRecent(reason)
         }
-        attachedToolbar.setRecents(recents.list())
+        attachedToolbar.onUnavailableFavorite = { [weak self] reason in
+            self?.explainUnavailableFavorite(reason)
+        }
+        attachedToolbar.onAddFavoriteFromPath = { [weak self] raw in
+            self?.addFavorite(rawPath: raw)
+        }
+        attachedToolbar.onRemoveFavorite = { [weak self] path in
+            self?.removeFavorite(path: path)
+        }
+        attachedToolbar.onMoveFavoriteUp = { [weak self] path in
+            self?.moveFavoriteUp(path: path)
+        }
+        attachedToolbar.onMoveFavoriteDown = { [weak self] path in
+            self?.moveFavoriteDown(path: path)
+        }
+        refreshListChrome()
         // Hide/show chrome as soon as the user switches apps (don't wait for poll).
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -185,7 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if showChrome {
                 // 仅在 chrome 从隐藏→显示时刷新列表，避免 0.5s 轮询重建行
                 if !chromeWasShown {
-                    attachedToolbar.setRecents(recents.list())
+                    refreshListChrome()
                 }
                 chromeWasShown = true
             } else {
@@ -255,7 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !jumpReady {
             menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: paused (Accessibility)"
         } else if case .eligible = detectionState {
-            menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: ready (Path + Recents)"
+            menu.item(at: MenuIndex.folderJump)?.title = "Folder Jump: ready (Path + Recents + Favorites)"
         } else {
             var waiting = "Folder Jump: waiting — panelServices=\(panelCount)"
             if !panelNames.isEmpty { waiting += " {\(panelNames)}" }
@@ -305,7 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             lastJumpSummary = "Last jump: ok → \(shortPath(path)) (\(evidence))"
             // 成功 Jump 写入 Recents（Open/Save 落点观察未接，避免假写入）
             recents.record(url: URL(fileURLWithPath: path, isDirectory: true))
-            attachedToolbar.setRecents(recents.list())
+            refreshListChrome()
             attachedToolbar.setStatus("Jumped · \(shortPath(path))")
             applyToUI()
         case .failure(let failure):
@@ -326,6 +344,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.informativeText = reason
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+
+    private func explainUnavailableFavorite(_ reason: String) {
+        let alert = NSAlert()
+        alert.messageText = "Favorite folder unavailable"
+        alert.informativeText = reason
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func refreshListChrome() {
+        attachedToolbar.setRecents(recents.list())
+        attachedToolbar.setFavorites(favorites.list())
+    }
+
+    private func addFavorite(rawPath: String) {
+        switch favorites.add(rawPath: rawPath) {
+        case .added:
+            refreshListChrome()
+            attachedToolbar.setStatus("Favorited · \(shortPath(rawPath))")
+        case .alreadyPresent:
+            attachedToolbar.setStatus("Already in Favorites")
+        case .atCapacity:
+            let alert = NSAlert()
+            alert.messageText = "Favorites full"
+            alert.informativeText = "Favorites cap is \(FavoritesRepository.capacity). Remove one to add another."
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        case .invalid(let reason):
+            let alert = NSAlert()
+            alert.messageText = "Could not favorite"
+            alert.informativeText = reason.userMessage
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
+    private func removeFavorite(path: String) {
+        favorites.remove(path: path)
+        refreshListChrome()
+        attachedToolbar.setStatus("Removed favorite")
+    }
+
+    private func moveFavoriteUp(path: String) {
+        favorites.moveUp(path: path)
+        refreshListChrome()
+    }
+
+    private func moveFavoriteDown(path: String) {
+        favorites.moveDown(path: path)
+        refreshListChrome()
     }
 
     private func shortPath(_ path: String) -> String {
