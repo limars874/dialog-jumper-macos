@@ -1342,9 +1342,13 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
         }
 
         let url = URL(fileURLWithPath: path, isDirectory: true)
-        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+        // Open/Save 面板常认 legacy filenames + file URL；单 NSURL 往往只够 Finder，面板不接
+        let writer = FolderURLPasteboardWriter(url: url)
+        let item = NSDraggingItem(pasteboardWriter: writer)
         let preview = dragPreviewImage(name: displayName.isEmpty ? url.lastPathComponent : displayName)
-        item.setDraggingFrame(bounds, contents: preview)
+        // 用稍大的拖拽帧，系统 hit-test drop 更稳
+        let dragRect = bounds.insetBy(dx: -4, dy: -4)
+        item.setDraggingFrame(dragRect, contents: preview)
 
         let session = beginDraggingSession(with: [item], event: event, source: self)
         session.animatesToStartingPositionsOnCancelOrFail = true
@@ -1368,21 +1372,21 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
             width: pad + iconSide + 4 + ceil(textSize.width) + pad,
             height: max(iconSide, ceil(textSize.height)) + pad
         )
-        let image = NSImage(size: size)
-        image.lockFocus()
-        NSColor.controlBackgroundColor.withAlphaComponent(0.92).setFill()
-        NSBezierPath(roundedRect: NSRect(origin: .zero, size: size), xRadius: 6, yRadius: 6).fill()
-        folderIcon.draw(
-            in: NSRect(x: pad, y: (size.height - iconSide) / 2, width: iconSide, height: iconSide),
-            from: .zero,
-            operation: .sourceOver,
-            fraction: 1
-        )
-        text.draw(
-            at: NSPoint(x: pad + iconSide + 4, y: (size.height - textSize.height) / 2),
-            withAttributes: attrs
-        )
-        image.unlockFocus()
+        let image = NSImage(size: size, flipped: false) { rect in
+            NSColor.controlBackgroundColor.withAlphaComponent(0.92).setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6).fill()
+            folderIcon.draw(
+                in: NSRect(x: pad, y: (rect.height - iconSide) / 2, width: iconSide, height: iconSide),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1
+            )
+            text.draw(
+                at: NSPoint(x: pad + iconSide + 4, y: (rect.height - textSize.height) / 2),
+                withAttributes: attrs
+            )
+            return true
+        }
         return image
     }
 
@@ -1390,7 +1394,40 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
         _ session: NSDraggingSession,
         sourceOperationMaskFor context: NSDraggingContext
     ) -> NSDragOperation {
-        // generic：Open/Save 面板认 file URL 导航时常用
-        .generic
+        // 放宽 mask：面板若只声明 copy/link，仅 generic 会显示禁止光标
+        [.copy, .generic, .link, .move]
+    }
+}
+
+/// 同时提供 file URL + 旧版 filenames 列表，贴近 Finder 拖文件夹的 pasteboard 形状。
+private final class FolderURLPasteboardWriter: NSObject, NSPasteboardWriting {
+    private let url: URL
+
+    init(url: URL) {
+        self.url = url
+        super.init()
+    }
+
+    func writableTypes(for pasteboard: NSPasteboard) -> [NSPasteboard.PasteboardType] {
+        [
+            .fileURL,
+            NSPasteboard.PasteboardType("public.file-url"),
+            NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+            .string
+        ]
+    }
+
+    func pasteboardPropertyList(forType type: NSPasteboard.PasteboardType) -> Any? {
+        if type == .fileURL || type.rawValue == "public.file-url" {
+            // 必须是 URL 字符串（file:///…），不是 path
+            return (url as NSURL).absoluteString
+        }
+        if type.rawValue == "NSFilenamesPboardType" {
+            return [url.path]
+        }
+        if type == .string {
+            return url.path
+        }
+        return nil
     }
 }
