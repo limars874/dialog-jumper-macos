@@ -147,16 +147,22 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let screen = NSScreen.screens.first(where: { $0.frame.intersects(frame.cocoaRect) })?.visibleFrame
             ?? NSScreen.main?.visibleFrame
             ?? frame.cocoaRect
-        let origin = FileDialogGeometry.sideChromeOrigin(
-            dialog: frame.cocoaRect,
-            chromeSize: chromeSize,
-            screen: screen
+        // chromeSize = 内容区；整窗含标题栏。顶对齐用 window 高度，
+        // 否则侧栏会比 dialog 高出约一截标题栏。
+        let contentProbe = NSRect(origin: .zero, size: chromeSize)
+        let windowSize = panel.frameRect(forContentRect: contentProbe).size
+        let gap: CGFloat = 8
+        let dialogRect = frame.cocoaRect
+        let rightX = dialogRect.maxX + gap
+        let leftX = dialogRect.minX - gap - windowSize.width
+        let preferRight = rightX + windowSize.width <= screen.maxX - 4
+        let x = preferRight ? rightX : max(screen.minX + 4, leftX)
+        var y = dialogRect.maxY - windowSize.height
+        y = min(max(y, screen.minY + 4), screen.maxY - windowSize.height - 4)
+        panel.setFrame(
+            NSRect(x: x, y: y, width: windowSize.width, height: windowSize.height),
+            display: true
         )
-        // chromeSize = content 尺寸；setFrame 必须用「含标题栏」的 window frame，
-        // 否则内容区被压矮，顶部 status 会被裁成半截。
-        let contentRect = NSRect(origin: origin, size: chromeSize)
-        let windowFrame = panel.frameRect(forContentRect: contentRect)
-        panel.setFrame(windowFrame, display: true)
 
         let host = dialog.hostName ?? "File Dialog"
         let kind = dialog.panelKind?.rawValue ?? "panel"
