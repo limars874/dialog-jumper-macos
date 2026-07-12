@@ -312,7 +312,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openAccessibilitySettings() {
-        requestAccessibilityTCCRegistration()
+        // Menu action: only open Settings. Do not also fire the system prompt
+        // (that dialog's OK also jumps to the same list — felt duplicated).
         NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
         refreshFromSystem()
     }
@@ -324,12 +325,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
-    /// First-run / untrusted launch: prompt + Settings so the app shows up without manual "+".
+    /// Untrusted launch: one system registration prompt only (OK may open Settings).
+    /// Avoid also opening Settings here — that double-opened the Accessibility list.
     private func promptForAccessibilityIfNeeded() {
         refreshFromSystem()
         guard authorization == .paused else { return }
         requestAccessibilityTCCRegistration()
-        NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
         refreshFromSystem()
     }
 
