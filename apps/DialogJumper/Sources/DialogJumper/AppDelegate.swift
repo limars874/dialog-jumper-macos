@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastJumpSummary: String = "Last jump: —"
     private var pollTimer: Timer?
     private let attachedToolbar = AttachedPathToolbarController()
+    /// User was sent to Accessibility settings; watch for grant / offer relaunch.
+    private var awaitingAccessibilityGrant = false
+    private var didOfferRelaunchForCurrentWait = false
 
     init(
         trustReader: any AccessibilityTrustReading,
@@ -48,6 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.refreshFromSystem()
             }
         }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        refreshFromSystem()
+        considerAccessibilityGrantFollowUp()
     }
 
     /// Standard Edit menu so accessory text fields accept ⌘V / ⌘C / ⌘X / ⌘A.
@@ -158,6 +166,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshFromSystem() {
         let trusted = trustReader.isProcessTrusted()
         authorization = AccessibilityGate.authorization(isProcessTrusted: trusted)
+        if authorization == .ready {
+            awaitingAccessibilityGrant = false
+            didOfferRelaunchForCurrentWait = false
+        }
         // Detection only when trusted — never cross-process AX while paused.
         detectionState = fileDialogDetector.detect(authorization: authorization)
         // Ticket 04: attach/detach side Path chrome to eligible dialogs only.
@@ -312,45 +324,121 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openAccessibilitySettings() {
-        // Menu action: only open Settings. Do not also fire the system prompt
-        // (that dialog's OK also jumps to the same list — felt duplicated).
+        // Menu: open Settings only (no second system prompt).
+        awaitingAccessibilityGrant = true
+        didOfferRelaunchForCurrentWait = false
         NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
         refreshFromSystem()
     }
 
-    /// Ask macOS to register this process for Accessibility (may show system UI / list entry).
-    /// Never treat the return value as already granted.
+    /// Register with TCC (may show system prompt). Never treat return as granted.
     private func requestAccessibilityTCCRegistration() {
+        awaitingAccessibilityGrant = true
+        didOfferRelaunchForCurrentWait = false
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
-    /// Untrusted launch: one system registration prompt only (OK may open Settings).
-    /// Avoid also opening Settings here — that double-opened the Accessibility list.
+    /// Untrusted launch: one system registration prompt only.
     private func promptForAccessibilityIfNeeded() {
         refreshFromSystem()
         guard authorization == .paused else { return }
         requestAccessibilityTCCRegistration()
         refreshFromSystem()
+        considerAccessibilityGrantFollowUp()
+    }
+
+    /// After Settings / prompt: if still paused, offer one-click relaunch (OS often needs it).
+    private func considerAccessibilityGrantFollowUp() {
+        guard awaitingAccessibilityGrant else { return }
+        refreshFromSystem()
+        if authorization == .ready {
+            awaitingAccessibilityGrant = false
+            didOfferRelaunchForCurrentWait = false
+            return
+        }
+        guard !didOfferRelaunchForCurrentWait else { return }
+        // Give TCC a moment after the user toggles the switch.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.offerRelaunchIfStillPaused()
+        }
+    }
+
+    private func offerRelaunchIfStillPaused() {
+        guard awaitingAccessibilityGrant, !didOfferRelaunchForCurrentWait else { return }
+        refreshFromSystem()
+        if authorization == .ready {
+            awaitingAccessibilityGrant = false
+            return
+        }
+        didOfferRelaunchForCurrentWait = true
+        let alert = NSAlert()
+        alert.messageText = "Apply Accessibility"
+        alert.informativeText = """
+        macOS often keeps Accessibility off for the running process until Dialog Jumper restarts.
+
+        If you already enabled Dialog Jumper in System Settings, click Relaunch — no need to hunt for Quit manually.
+        """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Relaunch Dialog Jumper")
+        alert.addButton(withTitle: "Not yet")
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            relaunchApplication()
+        }
+    }
+
+    /// Quit and reopen the same .app so TCC trust is picked up.
+    private func relaunchApplication() {
+        let appURL = Bundle.main.bundleURL
+        // Only relaunch when running as a real .app (dev dist bundle).
+        guard appURL.pathExtension == "app" else {
+            presentJumpResult(
+                title: "Relaunch from the app bundle",
+                message: "Run via apps/DialogJumper/scripts/run-dev-app.sh (dist/DialogJumper.app), then enable Accessibility and use Relaunch."
+            )
+            return
+        }
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: appURL, configuration: config) { _, error in
+            if let error {
+                DispatchQueue.main.async {
+                    self.presentJumpResult(title: "Relaunch failed", message: error.localizedDescription)
+                }
+                return
+            }
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     @objc private func recheckAccessibility() {
         refreshFromSystem()
-        if authorization == .paused {
-            let alert = NSAlert()
-            alert.messageText = "Accessibility still off"
-            alert.informativeText = """
-            Look for “Dialog Jumper” (me.dialogjumper.dev) under System Settings → Privacy & Security → Accessibility and turn it on.
-
-            If it is missing, click Open Settings… again — Dialog Jumper will re-request registration with macOS.
-            """
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "OK")
-            alert.addButton(withTitle: "Open Settings…")
-            let response = alert.runModal()
-            if response == .alertSecondButtonReturn {
-                openAccessibilitySettings()
-            }
+        if authorization == .ready {
+            awaitingAccessibilityGrant = false
+            return
+        }
+        // Product path: offer relaunch / settings, not “you must manually restart”.
+        let alert = NSAlert()
+        alert.messageText = "Accessibility still off"
+        alert.informativeText = """
+        1) Enable “Dialog Jumper” in System Settings → Privacy & Security → Accessibility.
+        2) If it is already on, click Relaunch so macOS applies trust to this process.
+        """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Relaunch Dialog Jumper")
+        alert.addButton(withTitle: "Open Settings…")
+        alert.addButton(withTitle: "Cancel")
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            relaunchApplication()
+        case .alertSecondButtonReturn:
+            openAccessibilitySettings()
+        default:
+            break
         }
     }
 
