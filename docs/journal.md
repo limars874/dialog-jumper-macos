@@ -119,3 +119,8 @@
 - **Did**: 写入最小验收包 `.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`（R1–R6 步骤、图例、lab PASS vs REQ、复测模板）；票 09 Status=done；更新 progress。
 - **Decided**: 09 是 HITL 清单+诚实记账，不是全自动 matrix、也不是要求 owner 填满 OS×host。R2 Save 与多宿主/多 OS 保持 REQ，禁止 greening。
 - **Refs**: `mvp-support-matrix-pack.md`, issues/09, `file-dialog-support-matrix.md`
+
+## [2026-07-12] UX polish pass (grill-with-docs)
+- **Did**: grill 锁定后清理 debug/lab 菜单串、双通道 soft-fail alert、Request 菜单项、toolbar hint/教学 header；`#if DEBUG` NSLog；对齐 Recent Folder glossary。
+- **Decided**: 软失败只 status；revoke/Accessibility 硬恢复可 alert；菜单 Settings+Recheck+Relaunch；不做热键/新能力/matrix greening。
+- **Refs**: `AppDelegate.swift`, `AttachedPathToolbarController.swift`, `AccessibilityGate.swift`, `docs/context.md`

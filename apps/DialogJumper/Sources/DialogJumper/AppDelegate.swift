@@ -24,15 +24,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private enum MenuIndex {
         static let accessibility = 0
         static let folderJump = 1
-        static let fileDialog = 2
-        static let lastJump = 3
-        // 4 separator
-        static let focusPath = 5
-        // 6 separator
-        static let requestAccess = 7
-        static let recheckAccess = 8
-        static let openSettings = 9
-        static let relaunch = 10
+        static let lastJump = 2
+        // 3 separator
+        static let focusPath = 4
+        // 5 separator
+        static let recheckAccess = 6
+        static let openSettings = 7
+        static let relaunch = 8
     }
 
     init(
@@ -91,7 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let pollTimer {
             RunLoop.main.add(pollTimer, forMode: .common)
         }
+#if DEBUG
         NSLog("[DialogJumper] launched, initial auth refresh done")
+#endif
     }
 
     @objc private func frontAppChanged(_ note: Notification) {
@@ -152,7 +152,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(disabled("Accessibility: starting…"))
         menu.addItem(disabled("Folder Jump: starting…"))
-        menu.addItem(disabled("File Dialog: starting…"))
         menu.addItem(disabled(lastJumpSummary))
         menu.addItem(.separator())
 
@@ -160,10 +159,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         focus.target = self
         menu.addItem(focus)
         menu.addItem(.separator())
-
-        let request = NSMenuItem(title: "Request Accessibility…", action: #selector(requestAccessibility), keyEquivalent: "")
-        request.target = self
-        menu.addItem(request)
 
         let recheck = NSMenuItem(title: "Recheck Accessibility", action: #selector(recheckAccessibility), keyEquivalent: "r")
         recheck.target = self
@@ -235,15 +230,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             notifyAccessibilityRevokedOnce()
         }
 
+#if DEBUG
         NSLog(
-            "[DialogJumper] trusted=%@ revokedPresent=%@ detect=%@ panels=%ld",
+            "[DialogJumper] trusted=%@ revokedPresent=%@ detect=%@",
             trusted ? "YES" : "NO",
             transition.isRevokedPresentation ? "YES" : "NO",
-            detectionState.menuTitle as NSString,
-            NSWorkspace.shared.runningApplications.filter {
-                FileDialogFingerprint.isOpenAndSavePanelService(bundleIdentifier: $0.bundleIdentifier)
-            }.count
+            detectionState.menuTitle as NSString
         )
+#endif
     }
 
     /// Show floating chrome only while the File Dialog's host (or panel service) is frontmost.
@@ -276,7 +270,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func applyToUI() {
         guard let menu = statusMenu ?? statusItem.menu else {
+#if DEBUG
             NSLog("[DialogJumper] applyToUI: no menu")
+#endif
             return
         }
 
@@ -287,33 +283,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             AccessibilityGate.statusTitle(authorization, revoked: revoked)
 
         let jumpReady = AccessibilityGate.isFolderJumpEnabled(authorization)
-        let panelApps = NSWorkspace.shared.runningApplications.filter {
-            FileDialogFingerprint.isOpenAndSavePanelService(bundleIdentifier: $0.bundleIdentifier)
-        }
-        let panelCount = panelApps.count
-        let panelNames = panelApps.compactMap(\.localizedName).joined(separator: ", ")
         let hasEligible: Bool = {
             if case .eligible = detectionState { return true }
             return false
         }()
+        let hostSummary: String? = {
+            guard case .eligible(let dialog) = detectionState else { return nil }
+            var parts: [String] = []
+            if let host = dialog.hostName, !host.isEmpty { parts.append(host) }
+            if let kind = dialog.panelKind {
+                switch kind {
+                case .open: parts.append("Open")
+                case .save: parts.append("Save")
+                case .unknown: break
+                }
+            }
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        }()
 
-        var jumpTitle = AccessibilityGate.folderJumpMenuTitle(
+        menu.item(at: MenuIndex.folderJump)?.title = AccessibilityGate.folderJumpMenuTitle(
             authorization: authorization,
             revoked: revoked,
             hasEligibleDialog: hasEligible,
-            panelServiceCount: panelCount
+            hostSummary: hostSummary
         )
-        if jumpReady, !hasEligible, !panelNames.isEmpty {
-            jumpTitle += " {\(panelNames)}"
-        }
-        menu.item(at: MenuIndex.folderJump)?.title = jumpTitle
-
-        menu.item(at: MenuIndex.fileDialog)?.title = detectionState.menuTitle
         menu.item(at: MenuIndex.lastJump)?.title = lastJumpSummary
 
         let canJump = jumpReady && hasEligible
         if let focus = menu.item(at: MenuIndex.focusPath) {
-            // Keep enabled so user can get an honest explanation when nothing is eligible.
             focus.isEnabled = true
             if canJump {
                 focus.title = "Focus Path on Toolbar…"
@@ -322,10 +319,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     ? "Focus Path… (Accessibility revoked)"
                     : "Focus Path… (need Accessibility)"
             } else {
-                focus.title = "Focus Path… (need standard File Dialog)"
+                focus.title = "Focus Path… (no File Dialog)"
             }
         }
-        menu.item(at: MenuIndex.requestAccess)?.isEnabled = !jumpReady
+
         menu.item(at: MenuIndex.recheckAccess)?.isEnabled = true
         menu.item(at: MenuIndex.relaunch)?.isEnabled = !jumpReady
     }
@@ -360,8 +357,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             dialog = nil
         }
         switch folderJumper.jump(rawPath: rawPath, authorization: authorization, dialog: dialog) {
-        case .success(let path, let evidence):
-            lastJumpSummary = "Last jump: ok → \(shortPath(path)) (\(evidence))"
+        case .success(let path, _):
+            lastJumpSummary = "Last jump: ok · \(shortPath(path))"
             // 成功 Jump 写入 Recents（Open/Save 落点观察未接，避免假写入）
             recents.record(url: URL(fileURLWithPath: path, isDirectory: true))
             refreshListChrome()
@@ -372,21 +369,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Visible recovery-oriented failure: menu summary + toolbar status + one alert.
+    /// Soft failures: menu + toolbar status only. Accessibility hard recovery may alert.
     private func presentJumpFailure(_ failure: FolderJumpFailure) {
-        lastJumpSummary = "Last jump: failed — \(shortMessage(failure.userMessage))"
-        // Toolbar may already be dismissed (paused / dialog gone); still set status if present.
+        lastJumpSummary = "Last jump: failed · \(shortMessage(failure.userMessage))"
         attachedToolbar.setStatus(failure.toolbarStatus)
         applyToUI()
+
+        guard failure == .accessibilityPaused else { return }
+
         let alert = NSAlert()
         alert.messageText = failure.alertTitle
         alert.informativeText = failure.userMessage
         alert.addButton(withTitle: "OK")
-        if failure == .accessibilityPaused {
-            alert.addButton(withTitle: "Open Accessibility Settings…")
-        }
+        alert.addButton(withTitle: "Open Accessibility Settings…")
         let response = alert.runModal()
-        if failure == .accessibilityPaused, response == .alertSecondButtonReturn {
+        if response == .alertSecondButtonReturn {
             openAccessibilitySettings()
         }
     }
@@ -411,19 +408,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func explainUnavailableRecent(_ reason: String) {
-        let alert = NSAlert()
-        alert.messageText = "Recent folder unavailable"
-        alert.informativeText = reason
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
+        attachedToolbar.setStatus("Unavailable · \(shortMessage(reason, limit: 40))")
+        lastJumpSummary = "Last jump: — · recent unavailable"
+        applyToUI()
     }
 
     private func explainUnavailableFavorite(_ reason: String) {
-        let alert = NSAlert()
-        alert.messageText = "Favorite folder unavailable"
-        alert.informativeText = reason
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
+        attachedToolbar.setStatus("Unavailable · \(shortMessage(reason, limit: 40))")
+        lastJumpSummary = "Last jump: — · favorite unavailable"
+        applyToUI()
     }
 
     private func refreshListChrome() {
@@ -439,17 +432,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .alreadyPresent:
             attachedToolbar.setStatus("Already in Favorites")
         case .atCapacity:
-            let alert = NSAlert()
-            alert.messageText = "Favorites full"
-            alert.informativeText = "Favorites cap is \(FavoritesRepository.capacity). Remove one to add another."
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+            attachedToolbar.setStatus("Favorites full (max \(FavoritesRepository.capacity))")
         case .invalid(let reason):
-            let alert = NSAlert()
-            alert.messageText = "Could not favorite"
-            alert.informativeText = reason.userMessage
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+            attachedToolbar.setStatus(reason.userMessage)
         }
     }
 
@@ -510,7 +495,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "Dialog Jumper"
-        alert.informativeText = "Status is the top grey lines of this menu."
+        alert.informativeText =
+            "Jump folders inside standard macOS Open & Save dialogs.\n"
+            + "Path · Recents · Favorites — never clicks Open/Save for you."
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }

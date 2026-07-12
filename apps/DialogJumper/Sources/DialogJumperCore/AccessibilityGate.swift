@@ -88,18 +88,21 @@ public enum AccessibilityGate {
         authorization: AccessibilityAuthorization,
         revoked: Bool,
         hasEligibleDialog: Bool,
-        panelServiceCount: Int
+        hostSummary: String? = nil
     ) -> String {
         guard isFolderJumpEnabled(authorization) else {
             if revoked {
                 return "Folder Jump: stopped (Accessibility revoked)"
             }
-            return "Folder Jump: paused (Accessibility)"
+            return "Folder Jump: paused (need Accessibility)"
         }
         if hasEligibleDialog {
-            return "Folder Jump: ready (Path + Recents + Favorites)"
+            if let hostSummary, !hostSummary.isEmpty {
+                return "Folder Jump: ready · \(hostSummary)"
+            }
+            return "Folder Jump: ready"
         }
-        return "Folder Jump: waiting — panelServices=\(panelServiceCount)"
+        return "Folder Jump: waiting for File Dialog"
     }
 
     public static func revokeAlertMessage() -> String {

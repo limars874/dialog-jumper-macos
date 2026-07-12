@@ -31,8 +31,7 @@ struct RuntimeRecoveryTests {
         #expect(AccessibilityGate.folderJumpMenuTitle(
             authorization: .paused,
             revoked: true,
-            hasEligibleDialog: false,
-            panelServiceCount: 0
+            hasEligibleDialog: false
         ).contains("revoked"))
     }
 
@@ -96,25 +95,31 @@ struct RuntimeRecoveryTests {
             AccessibilityGate.folderJumpMenuTitle(
                 authorization: .paused,
                 revoked: false,
-                hasEligibleDialog: false,
-                panelServiceCount: 0
-            ).contains("paused")
+                hasEligibleDialog: false
+            ).localizedCaseInsensitiveContains("paused")
         )
         #expect(
             AccessibilityGate.folderJumpMenuTitle(
                 authorization: .ready,
                 revoked: false,
                 hasEligibleDialog: true,
-                panelServiceCount: 1
+                hostSummary: "TextEdit · Open"
             ).contains("ready")
         )
         #expect(
             AccessibilityGate.folderJumpMenuTitle(
                 authorization: .ready,
                 revoked: false,
-                hasEligibleDialog: false,
-                panelServiceCount: 2
-            ).contains("waiting")
+                hasEligibleDialog: true,
+                hostSummary: "TextEdit · Open"
+            ).contains("TextEdit")
         )
+        let waiting = AccessibilityGate.folderJumpMenuTitle(
+            authorization: .ready,
+            revoked: false,
+            hasEligibleDialog: false
+        )
+        #expect(waiting.localizedCaseInsensitiveContains("waiting"))
+        #expect(!waiting.localizedCaseInsensitiveContains("panelServices"))
     }
 }

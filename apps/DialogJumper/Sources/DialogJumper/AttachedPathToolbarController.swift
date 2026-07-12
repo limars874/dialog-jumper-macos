@@ -178,10 +178,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         add.toolTip = "Add path field folder to Favorites"
         addFavoriteButton = add
 
-        let hint = makeLabel("Return · never auto Open/Save", bold: false, size: 9)
-        hint.textColor = .tertiaryLabelColor
-        hint.frame = NSRect(x: 204, y: h - 108, width: w - 216, height: 20)
-
         // 列表区：Recents 上半、Favorites 下半（固定分区，避免抢高度）
         let listTop = h - 140
         let listBottom: CGFloat = 12
@@ -243,7 +239,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         root.addSubview(field)
         root.addSubview(jump)
         root.addSubview(add)
-        root.addSubview(hint)
         root.addSubview(recentsHeader)
         root.addSubview(emptyRecents)
         root.addSubview(recentsScrollView)
@@ -268,7 +263,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             recentsHeaderLabel?.stringValue = "Recents"
             emptyRecentsLabel?.stringValue = "Jump once to fill Recents"
         } else {
-            recentsHeaderLabel?.stringValue = "Recents (\(recentEntries.count)) · click to Jump"
+            recentsHeaderLabel?.stringValue = "Recents (\(recentEntries.count))"
         }
 
         guard !empty else {
@@ -305,7 +300,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             favoritesHeaderLabel?.stringValue = "Favorites"
             emptyFavoritesLabel?.stringValue = "★ Favorite pins a path here"
         } else {
-            favoritesHeaderLabel?.stringValue = "Favorites (\(favoriteEntries.count)) · click · ↑↓✕"
+            favoritesHeaderLabel?.stringValue = "Favorites (\(favoriteEntries.count))"
         }
 
         guard !empty else {
