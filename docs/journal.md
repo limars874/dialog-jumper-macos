@@ -134,3 +134,18 @@
 - **Did**: 按更新后的 flow-reflect：已毕业进 `constraints.md` 的 6 条从 `learnings.md` 删除；constraints Evidence 去掉指向 learnings 的死链；Process 约束写明「毕业后从 learnings 删除」。
 - **Kept in learnings**: hashline edit 习惯、⌥Space shortcut 冲突、cancel 决策禁止 draft 关票（未毕业）。
 - **Refs**: `docs/learnings.md`, `docs/constraints.md`, skill `flow-reflect` step 4
+
+## [2026-07-12] 列表 UI 打磨 + Recents 行操作
+- **Did**: Recents|Favorites 改为 segment 整高列表；单行无图标行；Recents 加 ★/复制；小钮 hover；复制钮单独放大；manage 条宽度收敛。
+- **Decided**: 不做底宽条布局；列表保持侧栏。路径截断必须可见省略号（attributed + paragraphStyle）。
+- **Refs**: `AttachedPathToolbarController.swift`, commits `11aa35b`…`8d0fa5e`
+
+## [2026-07-12] Finder tab 作为 path 来源
+- **Did**: 第三 tab Finder；↻ 按需 AppleScript 读打开窗 target；Automation 用途说明写入 Info.plist；修复 window 索引枚举；列表 cap **50**（脚本+Swift）。
+- **Decided**: 不轮询 Finder；不改 hide-on-frontmost 合同；0 窗空列表可接受；多窗直接列 path 点选 Jump/★/复制。
+- **Refs**: `FinderWindowsReader.swift`, `run-dev-app.sh`, commits `18ce0c8`…`3d3e0ab`
+
+## [2026-07-12] memory 补记（progress/journal 落后）
+- **Did**: 收尾后一长串 polish/Finder 未写入 progress/journal；本次补齐真相快照与两条 journal。
+- **Decided**: 有意义功能落点后应更新 progress；journal 可合并同日多 commit 为一条主题。
+- **Refs**: `docs/progress.md`, `docs/journal.md`
