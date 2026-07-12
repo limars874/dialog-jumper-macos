@@ -36,7 +36,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private let chromeSize = CGSize(width: 300, height: 420)
     private let rowHeight: CGFloat = 30
     private let favoriteManageWidth: CGFloat = 52
-    private let recentManageWidth: CGFloat = 36
+    private let recentManageWidth: CGFloat = 56
 
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
         guard case .eligible(let dialog) = detection else {
@@ -323,17 +323,20 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
-        let btnW: CGFloat = 16
-        let btnH: CGFloat = 16
+        // 原 16pt 再 +50% → 24pt，便于点中 ★ / 复制
+        let btnW: CGFloat = 24
+        let btnH: CGFloat = 24
         let midY = (rowHeight - btnH) / 2
         let stackX = jumpWidth + 2
 
         let star = makeTinyButton(title: "★", tag: index, action: #selector(recentFavorite(_:)))
+        star.font = .systemFont(ofSize: 14, weight: .semibold)
         star.frame = NSRect(x: stackX, y: midY, width: btnW, height: btnH)
         star.toolTip = "Add to Favorites"
 
         let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(recentCopyPath(_:)))
-        copy.frame = NSRect(x: stackX + 17, y: midY, width: btnW, height: btnH)
+        copy.font = .systemFont(ofSize: 14, weight: .semibold)
+        copy.frame = NSRect(x: stackX + 26, y: midY, width: btnW, height: btnH)
         copy.toolTip = "Copy full path"
 
         container.addSubview(star)
