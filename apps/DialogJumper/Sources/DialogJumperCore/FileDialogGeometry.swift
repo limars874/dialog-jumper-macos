@@ -105,16 +105,7 @@ public enum FileDialogGeometry {
         if let best {
             return FileDialogFrame(cocoaRect: best, panelPID: pid)
         }
-        // Last resort: place near main screen center (still attach chrome).
-        if let screen = NSScreen.main?.visibleFrame {
-            let rect = CGRect(
-                x: screen.midX - 320,
-                y: screen.midY - 220,
-                width: 640,
-                height: 440
-            )
-            return FileDialogFrame(cocoaRect: rect, panelPID: pid)
-        }
+        // No substantial window → treat as not visible (Cancel leaves process alive).
         return nil
     }
 }

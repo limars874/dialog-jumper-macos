@@ -6,25 +6,21 @@ public protocol FileDialogDetecting: Sendable {
     func detect(authorization: AccessibilityAuthorization) -> FileDialogDetectionState
 }
 
-/// Detects system standard Open/Save panels via panel service + AX fingerprint.
+/// Detects system Open/Save panels.
 ///
-/// On some OS builds the panel service is running but exposes **zero AX windows**.
-/// In that case we still treat a live `openAndSavePanelService` (optionally host-tagged)
-/// as eligible so toolbar/jump can proceed; geometry falls back to CGWindow bounds.
+/// `openAndSavePanelService` often stays alive after Cancel. We only treat a panel
+/// as eligible when it has a **visible large window** (CG and/or AX), not merely a process.
 public struct FileDialogDetector: FileDialogDetecting {
     public init() {}
 
     public func detect(authorization: AccessibilityAuthorization) -> FileDialogDetectionState {
-        guard authorization == .ready else {
-            return .accessibilityPaused
-        }
+        guard authorization == .ready else { return .accessibilityPaused }
 
         let frontmost = NSWorkspace.shared.frontmostApplication
         let hostName = frontmost?.localizedName
         let hostBundle = frontmost?.bundleIdentifier
         let preferredHost = (hostName ?? "").lowercased()
 
-        // 1) Prefer panel service among running applications.
         var hostMatched: EligibleFileDialog?
         var anyPanel: EligibleFileDialog?
 
@@ -33,14 +29,14 @@ public struct FileDialogDetector: FileDialogDetecting {
             else { continue }
 
             let pid = application.processIdentifier
+            guard isPanelVisiblyOpen(pid: pid) else { continue }
+
             let hit = bestEligibleWindow(pid: pid)
                 ?? FileDialogFingerprintScore(
                     points: 2,
-                    reasons: ["panelServiceRunning"],
-                    panelKind: .unknown
+                    reasons: ["visiblePanelChrome"],
+                    panelKind: inferKind(application.localizedName)
                 )
-            // Require either real AX fingerprint or service-running fallback (always ≥2).
-            guard hit.isEligible || hit.reasons.contains("panelServiceRunning") else { continue }
 
             let candidate = EligibleFileDialog(
                 panelPID: pid,
@@ -50,7 +46,6 @@ public struct FileDialogDetector: FileDialogDetecting {
                 score: max(hit.points, 2),
                 reasons: hit.reasons
             )
-
             if anyPanel == nil { anyPanel = candidate }
 
             let serviceName = (application.localizedName ?? "").lowercased()
@@ -58,7 +53,6 @@ public struct FileDialogDetector: FileDialogDetecting {
                 hostMatched = candidate
                 break
             }
-            // Frontmost is the panel service itself.
             if application.processIdentifier == frontmost?.processIdentifier {
                 hostMatched = candidate
                 break
@@ -68,10 +62,9 @@ public struct FileDialogDetector: FileDialogDetecting {
         if let hostMatched { return .eligible(hostMatched) }
         if let anyPanel { return .eligible(anyPanel) }
 
-        // 2) CGWindow owner-name fallback (service may be missing from runningApplications briefly).
-        if let pid = cgPanelServicePID() {
+        if let pid = cgVisiblePanelServicePID() {
             let hit = bestEligibleWindow(pid: pid)
-                ?? FileDialogFingerprintScore(points: 2, reasons: ["cgWindowOwnerPanelService"], panelKind: .unknown)
+                ?? FileDialogFingerprintScore(points: 2, reasons: ["cgVisiblePanelChrome"], panelKind: .unknown)
             return .eligible(
                 EligibleFileDialog(
                     panelPID: pid,
@@ -87,9 +80,16 @@ public struct FileDialogDetector: FileDialogDetecting {
         return .none
     }
 
+    private func inferKind(_ name: String?) -> FileDialogFingerprintScore.PanelKind {
+        let lower = (name ?? "").lowercased()
+        if lower.contains("save") { return .save }
+        if lower.contains("open") { return .open }
+        return .unknown
+    }
+
     private func hostNameFromPanelService(_ localizedName: String?) -> String? {
-        guard let localizedName else { return nil }
-        guard let open = localizedName.firstIndex(of: "("),
+        guard let localizedName,
+              let open = localizedName.firstIndex(of: "("),
               let close = localizedName.lastIndex(of: ")"),
               open < close
         else { return nil }
@@ -98,9 +98,90 @@ public struct FileDialogDetector: FileDialogDetecting {
         return name.isEmpty ? nil : name
     }
 
+    private func isPanelVisiblyOpen(pid: pid_t) -> Bool {
+        if let size = largestCGSize(pid: pid, onScreenOnly: true), size.width > 200, size.height > 150 {
+            return true
+        }
+        if let size = largestCGSize(pid: pid, onScreenOnly: false), size.width > 200, size.height > 150 {
+            return true
+        }
+        return hasLargeAXWindow(pid: pid)
+    }
+
+    private func hasLargeAXWindow(pid: pid_t) -> Bool {
+        let app = AXUIElementCreateApplication(pid)
+        var windows = axElements(app, kAXWindowsAttribute as CFString)
+        if let focused = axElement(app, kAXFocusedWindowAttribute as CFString) {
+            windows.insert(focused, at: 0)
+        }
+        for window in windows {
+            if let size = axSize(window, kAXSizeAttribute as CFString),
+               size.width > 200, size.height > 150 {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func largestCGSize(pid: pid_t, onScreenOnly: Bool) -> CGSize? {
+        let options: CGWindowListOption = onScreenOnly
+            ? [.optionOnScreenOnly, .excludeDesktopElements]
+            : [.optionAll]
+        let info = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
+        var best = CGSize.zero
+        for window in info {
+            guard let ownerPID = ownerPID(from: window), ownerPID == pid else { continue }
+            if let alpha = window[kCGWindowAlpha as String] as? Double, alpha < 0.05 { continue }
+            if let alpha = window[kCGWindowAlpha as String] as? NSNumber, alpha.doubleValue < 0.05 {
+                continue
+            }
+            guard let (w, h) = wh(from: window), w * h > best.width * best.height else { continue }
+            best = CGSize(width: w, height: h)
+        }
+        return best == .zero ? nil : best
+    }
+
+    private func cgVisiblePanelServicePID() -> pid_t? {
+        let info = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] ?? []
+        var bestPID: pid_t?
+        var bestArea: CGFloat = 0
+        for window in info {
+            let owner = (window[kCGWindowOwnerName as String] as? String) ?? ""
+            guard owner.lowercased().contains("open and save panel") else { continue }
+            guard let pid = ownerPID(from: window), let (w, h) = wh(from: window) else { continue }
+            guard w > 200, h > 150 else { continue }
+            let area = w * h
+            if area > bestArea {
+                bestArea = area
+                bestPID = pid
+            }
+        }
+        return bestPID
+    }
+
+    private func ownerPID(from window: [String: Any]) -> pid_t? {
+        if let p = window[kCGWindowOwnerPID as String] as? pid_t { return p }
+        if let n = window[kCGWindowOwnerPID as String] as? NSNumber { return pid_t(truncating: n) }
+        return nil
+    }
+
+    private func wh(from window: [String: Any]) -> (CGFloat, CGFloat)? {
+        guard let bounds = window[kCGWindowBounds as String] as? [String: Any] else { return nil }
+        let w = (bounds["Width"] as? CGFloat)
+            ?? (bounds["Width"] as? NSNumber).map { CGFloat(truncating: $0) }
+            ?? 0
+        let h = (bounds["Height"] as? CGFloat)
+            ?? (bounds["Height"] as? NSNumber).map { CGFloat(truncating: $0) }
+            ?? 0
+        return (w, h)
+    }
+
     private func bestEligibleWindow(pid: pid_t) -> FileDialogFingerprintScore? {
         let application = AXUIElementCreateApplication(pid)
-        var candidates: [AXUIElement] = axElements(application, kAXWindowsAttribute as CFString)
+        var candidates = axElements(application, kAXWindowsAttribute as CFString)
         if let focused = axElement(application, kAXFocusedWindowAttribute as CFString) {
             candidates.insert(focused, at: 0)
         }
@@ -127,23 +208,6 @@ public struct FileDialogDetector: FileDialogDetecting {
         }
         return best
     }
-
-    private func cgPanelServicePID() -> pid_t? {
-        let info = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
-        for window in info {
-            let owner = (window[kCGWindowOwnerName as String] as? String) ?? ""
-            let lower = owner.lowercased()
-            guard lower.contains("open and save panel") || lower.contains("openandsavepanel")
-            else { continue }
-            if let pid = window[kCGWindowOwnerPID as String] as? pid_t {
-                return pid
-            }
-            if let num = window[kCGWindowOwnerPID as String] as? NSNumber {
-                return pid_t(truncating: num)
-            }
-        }
-        return nil
-    }
 }
 
 // MARK: - AX helpers
@@ -164,10 +228,15 @@ private func axString(_ element: AXUIElement, _ name: CFString) -> String? {
     return value as? String
 }
 
+private func axSize(_ element: AXUIElement, _ name: CFString) -> CGSize? {
+    guard let value = axCopy(element, name) else { return nil }
+    var size = CGSize.zero
+    guard AXValueGetValue(value as! AXValue, .cgSize, &size) else { return nil }
+    return size
+}
+
 private func axElements(_ element: AXUIElement, _ name: CFString) -> [AXUIElement] {
-    guard let value = axCopy(element, name), CFGetTypeID(value) == CFArrayGetTypeID() else {
-        return []
-    }
+    guard let value = axCopy(element, name), CFGetTypeID(value) == CFArrayGetTypeID() else { return [] }
     let array = unsafeDowncast(value, to: CFArray.self)
     return (0..<CFArrayGetCount(array)).compactMap { index in
         guard let pointer = CFArrayGetValueAtIndex(array, index) else { return nil }
