@@ -16,5 +16,6 @@ A **lesson** is abstract guidance the next run applies — a heuristic, not a sn
    - If `constraints.md` is `Status: confirmed`, the confirmed rule goes in and stays binding.
    - If it's `draft` (or missing status), a confirmed rule buried in a draft file binds nothing — so graduating is also the moment to ask the owner to review the whole file and flip it to `confirmed`. If they won't confirm the file yet, the lesson stays in `learnings.md` as guidance; don't add it to a file that can't carry it.
    A one-off stays in learnings.
+4. On graduation, **delete the lesson's entry from `docs/learnings.md`** — a rule lives in exactly one place, and it now lives in constraints. Keeping both means drift and double injection. If the graduation is worth remembering, the journal records it; learnings holds only live guidance.
 
 Record only lessons worth the next run's attention — a surprise that cost real time, not a routine step.
