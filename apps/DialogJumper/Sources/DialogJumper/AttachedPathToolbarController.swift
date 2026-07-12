@@ -42,6 +42,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var listDocument: NSView?
     private var emptyListLabel: NSTextField?
     private var addFavoriteButton: NSButton?
+    private var pathDragHandle: FolderDragHandleView?
     private var refreshDynamicButton: TinyActionButton?
     private var attachedPID: pid_t?
     private var recentEntries: [RecentFolderEntry] = []
@@ -223,13 +224,23 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         field.action = #selector(jumpFromField)
         pathField = field
 
-        let jump = NSButton(frame: NSRect(x: 12, y: h - 94, width: 72, height: 28))
+        let pathHandle = FolderDragHandleView(frame: NSRect(x: 12, y: h - 94, width: 22, height: 28))
+        pathHandle.pathProvider = { [weak self] in
+            self?.resolvedPathFieldFolder()
+        }
+        pathHandle.onDragRejected = { [weak self] message in
+            self?.setStatus(message)
+        }
+        pathHandle.toolTip = "Drag Path folder onto Open/Save panel"
+        pathDragHandle = pathHandle
+
+        let jump = NSButton(frame: NSRect(x: 38, y: h - 94, width: 72, height: 28))
         jump.title = "Jump"
         jump.bezelStyle = .rounded
         jump.target = self
         jump.action = #selector(jumpFromField)
 
-        let add = NSButton(frame: NSRect(x: 90, y: h - 94, width: 108, height: 28))
+        let add = NSButton(frame: NSRect(x: 116, y: h - 94, width: 108, height: 28))
         add.title = "★ Favorite"
         add.bezelStyle = .rounded
         add.target = self
@@ -283,6 +294,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
         root.addSubview(status)
         root.addSubview(field)
+        root.addSubview(pathHandle)
         root.addSubview(jump)
         root.addSubview(add)
         root.addSubview(segment)
@@ -741,6 +753,21 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
     @objc private func jumpFromField() {
         onJump?(pathField?.stringValue ?? "")
+    }
+
+    /// Path 框 → 可拖的真实目录；无效则 nil。
+    private func resolvedPathFieldFolder() -> (path: String, displayName: String)? {
+        let raw = (pathField?.stringValue ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty, PathResolver.looksLikePath(raw) else { return nil }
+        let expanded = PathResolver.expandTilde(raw, homeDirectoryPath: NSHomeDirectory())
+        let path = (expanded as NSString).standardizingPath
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
+            return nil
+        }
+        let name = (path as NSString).lastPathComponent
+        return (path, name.isEmpty ? path : name)
     }
 
     @objc private func addFavoriteFromField() {
@@ -1268,18 +1295,19 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
     private let iconView = NSImageView()
 
     var onDragRejected: ((String) -> Void)?
+    /// 若设置，拖出时现取 path（用于 Path 输入框）；否则用 configure 的静态 path。
+    var pathProvider: (() -> (path: String, displayName: String)?)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
-        // 四向箭头：表示「可拖走」而不是 Jump
         iconView.image = NSImage(
             systemSymbolName: "arrow.up.and.down.and.arrow.left.and.right",
             accessibilityDescription: "Drag folder"
         )?.withSymbolConfiguration(config)
         iconView.imageScaling = .scaleProportionallyDown
-        iconView.contentTintColor = .tertiaryLabelColor
+        iconView.contentTintColor = .secondaryLabelColor
         addSubview(iconView)
         toolTip = "Drag onto Open/Save panel to navigate"
     }
@@ -1293,11 +1321,13 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
         folderPath = path
         self.displayName = displayName
         dragEnabled = enabled
+        pathProvider = nil
         alphaValue = enabled ? 1 : 0.35
         iconView.contentTintColor = enabled ? .secondaryLabelColor : .quaternaryLabelColor
         toolTip = enabled
             ? "Drag onto Open/Save panel to navigate"
             : "Folder unavailable"
+        window?.invalidateCursorRects(for: self)
     }
 
     override func layout() {
@@ -1313,22 +1343,22 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
 
     override func resetCursorRects() {
         discardCursorRects()
-        if dragEnabled {
+        if pathProvider != nil || dragEnabled {
             addCursorRect(bounds, cursor: .openHand)
         }
     }
 
     override func mouseDown(with event: NSEvent) {
-        guard dragEnabled else { return }
-        mouseDownPoint = convert(event.locationInWindow, from: nil)
+        if pathProvider != nil || dragEnabled {
+            mouseDownPoint = convert(event.locationInWindow, from: nil)
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard dragEnabled, let start = mouseDownPoint else { return }
+        guard let start = mouseDownPoint else { return }
         let current = convert(event.locationInWindow, from: nil)
         let dx = current.x - start.x
         let dy = current.y - start.y
-        // 系统级拖拽阈值量级，避免和单击抢
         let threshold: CGFloat = 4
         guard hypot(dx, dy) >= threshold else { return }
         mouseDownPoint = nil
@@ -1340,25 +1370,39 @@ private final class FolderDragHandleView: NSView, NSDraggingSource {
     }
 
     private func beginFolderDrag(with event: NSEvent) {
-        let path = (folderPath as NSString).standardizingPath
+        let path: String
+        let name: String
+        if let pathProvider {
+            guard let resolved = pathProvider() else {
+                onDragRejected?("Can't drag — need a real folder path")
+                return
+            }
+            path = resolved.path
+            name = resolved.displayName
+        } else {
+            guard dragEnabled else { return }
+            path = (folderPath as NSString).standardizingPath
+            name = displayName
+        }
+
+        let standardized = (path as NSString).standardizingPath
         var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
+        guard FileManager.default.fileExists(atPath: standardized, isDirectory: &isDir), isDir.boolValue else {
             onDragRejected?("Can't drag — folder missing")
             return
         }
 
-        let url = URL(fileURLWithPath: path, isDirectory: true)
-        // Open/Save 面板常认 legacy filenames + file URL；单 NSURL 往往只够 Finder，面板不接
+        let url = URL(fileURLWithPath: standardized, isDirectory: true)
         let writer = FolderURLPasteboardWriter(url: url)
         let item = NSDraggingItem(pasteboardWriter: writer)
-        let preview = dragPreviewImage(name: displayName.isEmpty ? url.lastPathComponent : displayName)
-        // 用稍大的拖拽帧，系统 hit-test drop 更稳
+        let preview = dragPreviewImage(name: name.isEmpty ? url.lastPathComponent : name)
         let dragRect = bounds.insetBy(dx: -4, dy: -4)
         item.setDraggingFrame(dragRect, contents: preview)
 
         let session = beginDraggingSession(with: [item], event: event, source: self)
         session.animatesToStartingPositionsOnCancelOrFail = true
     }
+
 
     private func dragPreviewImage(name: String) -> NSImage {
         let folderIcon = NSImage(
