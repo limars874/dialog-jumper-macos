@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.*
+
+# SwiftPM
+.build/
+*.xcodeproj/
+DerivedData/
+
+# Scratch / local agent state may be large; track selectively if needed
