@@ -4,12 +4,11 @@ import DialogJumperCore
 
 /// Menu-bar shell: Accessibility + File Dialog detection + attached Path toolbar.
 ///
-/// Accessibility UX (keep simple):
-/// - Never auto-spam system prompt + Settings together.
-/// - "Request Accessibility…" → system prompt only (registers app in list).
-/// - "Open Accessibility Settings…" → Settings only.
-/// - "Relaunch to Apply Accessibility" → always in menu when paused (no extra modal).
-/// - Poll silently; when trusted, menu flips to ready without dialogs.
+/// Accessibility UX:
+/// - No auto prompt/Settings on launch (avoids double dialogs).
+/// - Menu: Request Accessibility… | Open Settings… | Relaunch to Apply
+/// - Ad-hoc rebuild changes CDHash: Settings may still show ON for the old binary;
+///   this process can still be untrusted until re-grant for the new build.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let trustReader: any AccessibilityTrustReading
@@ -49,7 +48,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.performJump(rawPath: raw, source: "toolbar")
         }
         refreshFromSystem()
-        // Quiet start: no auto system prompt / Settings on launch (avoids double dialogs).
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshFromSystem()
@@ -63,16 +61,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func installMainMenuWithStandardEdit() {
         let mainMenu = NSMenu()
-
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
-        appMenu.addItem(
-            withTitle: "Quit Dialog Jumper",
-            action: #selector(quit),
-            keyEquivalent: "q"
-        )
+        appMenu.addItem(withTitle: "Quit Dialog Jumper", action: #selector(quit), keyEquivalent: "q")
 
         let editMenuItem = NSMenuItem()
         mainMenu.addItem(editMenuItem)
@@ -85,7 +78,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
         editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
-
         NSApp.mainMenu = mainMenu
     }
 
@@ -96,7 +88,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.toolTip = "Dialog Jumper"
 
         let menu = NSMenu()
-
         statusMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         statusMenuItem.isEnabled = false
         menu.addItem(statusMenuItem)
@@ -125,7 +116,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        // --- Accessibility section (menu-only, no surprise modals) ---
         requestAccessMenuItem = NSMenuItem(
             title: "Request Accessibility…",
             action: #selector(requestAccessibility),
@@ -152,23 +142,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        let about = NSMenuItem(
-            title: "About Dialog Jumper",
-            action: #selector(showAbout),
-            keyEquivalent: ""
-        )
+        let about = NSMenuItem(title: "About Dialog Jumper", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(
-            title: "Quit Dialog Jumper",
-            action: #selector(quit),
-            keyEquivalent: "q"
-        )
-        quit.target = self
-        menu.addItem(quit)
+        let quitItem = NSMenuItem(title: "Quit Dialog Jumper", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
 
         statusItem.menu = menu
     }
@@ -185,10 +167,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyToUI()
     }
 
-        } else {
-            jumpCapabilityMenuItem.title =
-                "Folder Jump: paused — Settings ON but still DJ! usually means a new build; Request again or remove & re-add"
-        }
+    private func applyToUI() {
+        statusItem.button?.title = menuBarGlyph()
+        statusMenuItem.title = AccessibilityGate.statusTitle(authorization)
+
+        let jumpReady = AccessibilityGate.isFolderJumpEnabled(authorization)
         if jumpReady {
             switch detectionState {
             case .eligible:
@@ -199,7 +182,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 jumpCapabilityMenuItem.title = "Folder Jump: paused until Accessibility is enabled"
             }
         } else {
-            jumpCapabilityMenuItem.title = "Folder Jump: paused — use Request / Settings / Relaunch below"
+            // One Settings row can still be for an older ad-hoc build (CDHash).
+            jumpCapabilityMenuItem.title =
+                "Paused: Settings ON but this build untrusted → Request again, or remove row & re-add"
         }
 
         fileDialogMenuItem.title = detectionState.menuTitle
@@ -213,16 +198,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             jumpToPathMenuItem.title = "Focus Path… (need eligible File Dialog)"
         }
 
-        // Accessibility actions: visible when paused; relaunch still useful after grant.
         let paused = authorization == .paused
-        requestAccessMenuItem.isHidden = !paused
         requestAccessMenuItem.isEnabled = paused
-        openSettingsMenuItem.isEnabled = true
-        relaunchMenuItem.isHidden = !paused
         relaunchMenuItem.isEnabled = paused
-        if paused {
-            relaunchMenuItem.title = "Relaunch to Apply Accessibility"
-        }
+        openSettingsMenuItem.isEnabled = true
     }
 
     private func menuBarGlyph() -> String {
@@ -235,8 +214,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return AccessibilityGate.shortMenuBarTitle(authorization)
         }
     }
-
-    // MARK: - Path jump
 
     @objc private func jumpToPath() {
         refreshFromSystem()
@@ -281,8 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func shortPath(_ path: String) -> String {
-        if path.count <= 48 { return path }
-        return "…" + path.suffix(47)
+        path.count <= 48 ? path : "…" + path.suffix(47)
     }
 
     private func shortFailure(_ failure: FolderJumpFailure) -> String {
@@ -310,28 +286,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
     }
 
-    // MARK: - Accessibility (menu-driven only)
-
-    /// System prompt only — registers this app in the Accessibility list. Does not open Settings.
+    /// System prompt only — registers this build. Does not open Settings.
     @objc private func requestAccessibility() {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         refreshFromSystem()
     }
 
-    /// Settings only — no system prompt (avoids double UI).
+    /// Settings only.
     @objc private func openAccessibilitySettings() {
         NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
         refreshFromSystem()
     }
 
-    /// Restart same .app so TCC trust applies to a new process.
     @objc private func relaunchApplication() {
         let appURL = Bundle.main.bundleURL
         guard appURL.pathExtension == "app" else {
             presentAlert(
                 title: "Use the app bundle",
-                message: "Launch via apps/DialogJumper/scripts/run-dev-app.sh (dist/DialogJumper.app)."
+                message: "Launch via apps/DialogJumper/scripts/run-dev-app.sh"
             )
             return
         }
@@ -356,12 +329,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = """
         MVP — tickets 01–04.
 
-        Accessibility (when paused):
-        1) Request Accessibility…  (system prompt / list entry)
-        2) Turn on “Dialog Jumper” in the list (only this dist app)
-        3) Relaunch to Apply Accessibility  (menu item — no extra modal)
+        Accessibility when DJ!:
+        1) Request Accessibility… (registers this build)
+        2) Turn the switch ON (or remove stale row, then Request again)
+        3) Relaunch to Apply Accessibility
 
-        Folder Jump needs Accessibility only.
+        After code rebuild (ad-hoc sign), Settings may still show ON for the old
+        binary while this process stays untrusted — re-grant for the new build.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
