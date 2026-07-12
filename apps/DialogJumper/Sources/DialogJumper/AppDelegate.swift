@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // Menu-bar apps need a real Edit menu or ⌘V/⌘C/⌘X never reach text fields.
+        installMainMenuWithStandardEdit()
         configureStatusItem()
         refreshFromSystem()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
@@ -38,6 +40,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.refreshFromSystem()
             }
         }
+    }
+
+    /// Standard Edit menu so accessory text fields accept ⌘V / ⌘C / ⌘X / ⌘A.
+    private func installMainMenuWithStandardEdit() {
+        let mainMenu = NSMenu()
+
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+        appMenu.addItem(
+            withTitle: "Quit Dialog Jumper",
+            action: #selector(quit),
+            keyEquivalent: "q"
+        )
+
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        NSApp.mainMenu = mainMenu
     }
 
     private func configureStatusItem() {
@@ -167,8 +198,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshFromSystem()
         guard case .eligible(let dialog) = detectionState else {
             presentJumpResult(
-                title: "No File Dialog",
-                message: FolderJumpFailure.noEligibleDialog.userMessage
+                title: "No eligible File Dialog",
+                message: "Open a standard Open/Save panel first (menu shows File Dialog: detected)."
             )
             return
         }
@@ -180,19 +211,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Become active key app so the path field can receive ⌘V (paste).
+        NSApp.activate(ignoringOtherApps: true)
+
         let alert = NSAlert()
         alert.messageText = "Jump to Path"
         alert.informativeText =
-            "Enter an absolute path or ~ path. Dialog Jumper navigates the File Dialog only — it never clicks Open/Save for you."
+            "Paste or type an absolute path or ~ path. ⌘V works. Dialog Jumper only navigates the File Dialog — it never clicks Open/Save for you."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Jump")
         alert.addButton(withTitle: "Cancel")
 
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 420, height: 24))
         field.placeholderString = "/Library/Application Support"
-        field.stringValue = ""
+        field.isEditable = true
+        field.isSelectable = true
+        field.usesSingleLineMode = true
+        field.cell?.isScrollable = true
+        // Prefill clipboard when it already looks like a path.
+        if let clip = NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           PathResolver.looksLikePath(clip) {
+            field.stringValue = clip
+        } else {
+            field.stringValue = ""
+        }
         alert.accessoryView = field
+        alert.layout()
         alert.window.initialFirstResponder = field
+
+        // After the alert is on screen, force focus so paste targets the field.
+        DispatchQueue.main.async {
+            alert.window.makeFirstResponder(field)
+            field.currentEditor()?.selectAll(nil)
+        }
 
         let response = alert.runModal()
         guard response == .alertFirstButtonReturn else { return }
