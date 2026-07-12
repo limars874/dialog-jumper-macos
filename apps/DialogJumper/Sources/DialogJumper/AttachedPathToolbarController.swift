@@ -36,6 +36,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private let chromeSize = CGSize(width: 300, height: 420)
     private let rowHeight: CGFloat = 30
     private let favoriteManageWidth: CGFloat = 52
+    private let recentManageWidth: CGFloat = 36
 
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
         guard case .eligible(let dialog) = detection else {
@@ -303,7 +304,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     }
 
     private func makeRecentRow(entry: RecentFolderEntry, index: Int, width: CGFloat) -> NSView {
-        let row = FolderListRowControl(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: rowHeight))
+        container.autoresizingMask = [.width]
+
+        let jumpWidth = max(80, width - recentManageWidth - 4)
+        let row = FolderListRowControl(
+            frame: NSRect(x: 0, y: 0, width: jumpWidth, height: rowHeight)
+        )
         row.configure(
             displayName: entry.displayName,
             path: entry.path,
@@ -313,8 +320,25 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         )
         row.target = self
         row.action = #selector(recentClicked(_:))
-        row.autoresizingMask = [.width]
-        return row
+        row.autoresizingMask = [.width, .height]
+        container.addSubview(row)
+
+        let btnW: CGFloat = 16
+        let btnH: CGFloat = 16
+        let midY = (rowHeight - btnH) / 2
+        let stackX = jumpWidth + 2
+
+        let star = makeTinyButton(title: "★", tag: index, action: #selector(recentFavorite(_:)))
+        star.frame = NSRect(x: stackX, y: midY, width: btnW, height: btnH)
+        star.toolTip = "Add to Favorites"
+
+        let copy = makeTinyButton(title: "⎘", tag: index, action: #selector(recentCopyPath(_:)))
+        copy.frame = NSRect(x: stackX + 17, y: midY, width: btnW, height: btnH)
+        copy.toolTip = "Copy full path"
+
+        container.addSubview(star)
+        container.addSubview(copy)
+        return container
     }
 
     private func makeFavoriteRow(entry: FavoriteFolderEntry, index: Int, width: CGFloat) -> NSView {
@@ -415,6 +439,23 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             setStatus("Unavailable")
             onUnavailableRecent?(reason)
         }
+    }
+
+    @objc private func recentFavorite(_ sender: NSButton) {
+        let index = sender.tag
+        guard recentEntries.indices.contains(index) else { return }
+        let path = recentEntries[index].path
+        pathField?.stringValue = path
+        onAddFavoriteFromPath?(path)
+    }
+
+    @objc private func recentCopyPath(_ sender: NSButton) {
+        let index = sender.tag
+        guard recentEntries.indices.contains(index) else { return }
+        let path = recentEntries[index].path
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(path, forType: .string)
+        setStatus("Copied path")
     }
 
     @objc private func favoriteClicked(_ sender: Any?) {
