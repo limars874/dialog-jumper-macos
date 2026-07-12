@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.performJump(rawPath: raw, source: "toolbar")
         }
         refreshFromSystem()
+        // If not trusted, register with TCC (often appears in Accessibility list) and open Settings.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            self?.promptForAccessibilityIfNeeded()
+        }
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshFromSystem()
@@ -76,7 +80,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // Fixed length so the item is not zero-width before first title apply.
+        statusItem = NSStatusBar.system.statusItem(withLength: 28)
+        statusItem.isVisible = true
+        statusItem.button?.title = "DJ"
         statusItem.button?.toolTip = "Dialog Jumper"
 
         let menu = NSMenu()
@@ -305,8 +312,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openAccessibilitySettings() {
+        requestAccessibilityTCCRegistration()
+        NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
+        refreshFromSystem()
+    }
+
+    /// Ask macOS to register this process for Accessibility (may show system UI / list entry).
+    /// Never treat the return value as already granted.
+    private func requestAccessibilityTCCRegistration() {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
+    }
+
+    /// First-run / untrusted launch: prompt + Settings so the app shows up without manual "+".
+    private func promptForAccessibilityIfNeeded() {
+        refreshFromSystem()
+        guard authorization == .paused else { return }
+        requestAccessibilityTCCRegistration()
         NSWorkspace.shared.open(AccessibilitySettingsLink.privacyAccessibilityURL)
         refreshFromSystem()
     }
@@ -316,8 +338,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if authorization == .paused {
             let alert = NSAlert()
             alert.messageText = "Accessibility still off"
-            alert.informativeText =
-                "Dialog Jumper will not claim Folder Jump is ready. Enable the app under System Settings → Privacy & Security → Accessibility, then Recheck again."
+            alert.informativeText = """
+            Look for “Dialog Jumper” (me.dialogjumper.dev) under System Settings → Privacy & Security → Accessibility and turn it on.
+
+            If it is missing, click Open Settings… again — Dialog Jumper will re-request registration with macOS.
+            """
             alert.alertStyle = .informational
             alert.addButton(withTitle: "OK")
             alert.addButton(withTitle: "Open Settings…")
