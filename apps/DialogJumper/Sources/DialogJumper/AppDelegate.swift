@@ -184,6 +184,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard case .eligible(let dialog) = detection else { return false }
         guard let front = NSWorkspace.shared.frontmostApplication else { return false }
 
+        // Typing in our toolbar makes Dialog Jumper frontmost — keep chrome visible.
+        if front.bundleIdentifier == Bundle.main.bundleIdentifier { return true }
+        if front.processIdentifier == ProcessInfo.processInfo.processIdentifier { return true }
+
         // Panel service itself is key.
         if front.processIdentifier == dialog.panelPID { return true }
         if FileDialogFingerprint.isOpenAndSavePanelService(bundleIdentifier: front.bundleIdentifier) {
