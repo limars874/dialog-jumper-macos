@@ -1,0 +1,896 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.xctest/Contents/MacOS/DialogJumperPackageTests",
+      "packagePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper",
+      "productName" : "DialogJumperPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.DialogJumper-arm64-apple-macosx15.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/sources",
+      "importPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCore.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "DialogJumper",
+      "moduleOutputPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumper.swiftmodule",
+      "objects" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/AppDelegate.swift.o",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "DialogJumper_main",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dialogjumper"
+      ],
+      "outputFileMapPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/AppDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumper.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/AppDelegate.swift",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/main.swift"
+      ],
+      "tempsPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.DialogJumperCore-arm64-apple-macosx15.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/sources",
+      "importPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityGate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityTrustReading.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "DialogJumperCore",
+      "moduleOutputPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCore.swiftmodule",
+      "objects" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.swift.o",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/include/DialogJumperCore-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dialogjumper"
+      ],
+      "outputFileMapPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCore.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityGate.swift",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityTrustReading.swift"
+      ],
+      "tempsPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.DialogJumperCoreTests-arm64-apple-macosx15.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/sources",
+      "importPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Tests/DialogJumperCoreTests/AccessibilityGateTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCore.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "DialogJumperCoreTests",
+      "moduleOutputPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCoreTests.swiftmodule",
+      "objects" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/AccessibilityGateTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dialogjumper"
+      ],
+      "outputFileMapPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/AccessibilityGateTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCoreTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Tests/DialogJumperCoreTests/AccessibilityGateTests.swift"
+      ],
+      "tempsPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.DialogJumperPackageTests-arm64-apple-macosx15.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/sources",
+      "importPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperCoreTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "DialogJumperPackageTests",
+      "moduleOutputPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/include/DialogJumperPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dialogjumper"
+      ],
+      "outputFileMapPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules/DialogJumperPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "DialogJumper" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "DialogJumper",
+      "-package-name",
+      "dialogjumper",
+      "-c",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/AppDelegate.swift",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/main.swift",
+      "-I",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "DialogJumper_main",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dialogjumper",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "DialogJumperCore" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "DialogJumperCore",
+      "-package-name",
+      "dialogjumper",
+      "-c",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityGate.swift",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityTrustReading.swift",
+      "-I",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/include/DialogJumperCore-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dialogjumper",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "DialogJumperCoreTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "DialogJumperCoreTests",
+      "-package-name",
+      "dialogjumper",
+      "-c",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Tests/DialogJumperCoreTests/AccessibilityGateTests.swift",
+      "-I",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dialogjumper",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "DialogJumperPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "DialogJumperPackageTests",
+      "-package-name",
+      "dialogjumper",
+      "-c",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/include/DialogJumperPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dialogjumper",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "DialogJumper" : [
+      "DialogJumperCore"
+    ],
+    "DialogJumperCore" : [
+
+    ],
+    "DialogJumperCoreTests" : [
+      "DialogJumperCore"
+    ],
+    "DialogJumperPackageTests" : [
+      "DialogJumperCoreTests",
+      "DialogJumperCore"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper-entitlement.plist" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<entitlement-plist>"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<com.apple.security.get-task-allow>"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper-entitlement.plist"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumper/main.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/sources"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/AppDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumper.product/Objects.LinkFileList"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityGate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityTrustReading.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/sources"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Tests/DialogJumperCoreTests/AccessibilityGateTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/sources"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/sources"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCoreTests.build/AccessibilityGateTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.build/runner.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

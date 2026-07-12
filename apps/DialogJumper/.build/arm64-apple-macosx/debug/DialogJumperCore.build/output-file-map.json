@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/master.swiftdeps"
+  },
+  "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityGate.swift": {
+    "dependencies": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.d",
+    "object": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.swift.o",
+    "swiftmodule": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate~partial.swiftmodule",
+    "swift-dependencies": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.swiftdeps",
+    "diagnostics": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityGate.dia"
+  },
+  "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/Sources/DialogJumperCore/AccessibilityTrustReading.swift": {
+    "dependencies": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.d",
+    "object": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.swift.o",
+    "swiftmodule": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading~partial.swiftmodule",
+    "swift-dependencies": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.swiftdeps",
+    "diagnostics": "/Users/yi/Documents/code/me/dialog-jumper-workflow-lab/apps/DialogJumper/.build/arm64-apple-macosx/debug/DialogJumperCore.build/AccessibilityTrustReading.dia"
+  }
+}
