@@ -138,16 +138,20 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             chromeSize: chromeSize,
             screen: screen
         )
-        panel.setFrame(CGRect(origin: origin, size: chromeSize), display: true)
+        // chromeSize = content 尺寸；setFrame 必须用「含标题栏」的 window frame，
+        // 否则内容区被压矮，顶部 status 会被裁成半截。
+        let contentRect = NSRect(origin: origin, size: chromeSize)
+        let windowFrame = panel.frameRect(forContentRect: contentRect)
+        panel.setFrame(windowFrame, display: true)
 
         let host = dialog.hostName ?? "File Dialog"
         let kind = dialog.panelKind?.rawValue ?? "panel"
         let attachedLine = "Attached · \(kind) · \(host)"
         // 新附着或仍是默认文案时更新；Jump 成功/失败状态行不冲掉
         if isNewAttachment {
-            statusLabel?.stringValue = attachedLine
+            setStatus(attachedLine)
         } else if let s = statusLabel?.stringValue, s.hasPrefix("Attached") || s.isEmpty {
-            statusLabel?.stringValue = attachedLine
+            setStatus(attachedLine)
         }
 
         panel.alphaValue = 1
