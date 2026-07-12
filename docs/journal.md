@@ -114,3 +114,8 @@
 - **Did**: 落地 Accessibility 会话 revoke 呈现（ready→paused 边沿一次性 alert + 菜单 Revoked 文案）、Recheck Accessibility（无 prompt）、Jump/Focus 失败可见恢复文案（noEligible / dialogLost / paused）；`RuntimeRecoveryTests` 8 项；全套 52 tests 绿。
 - **Decided**: 纯映射放 Core `AccessibilityGate.applyTrustChange`；不实现 07 全局热键；不循环 `AXIsProcessTrustedWithOptions`。
 - **Refs**: `AccessibilityGate.swift`, `FolderJumpExecutor.swift`, `AppDelegate.swift`, `RuntimeRecoveryTests.swift`, issues/08
+
+## [2026-07-12] Implement ticket 09 support-matrix MVP pack
+- **Did**: 写入最小验收包 `.scratch/dialog-jumper-mvp/assets/mvp-support-matrix-pack.md`（R1–R6 步骤、图例、lab PASS vs REQ、复测模板）；票 09 Status=done；更新 progress。
+- **Decided**: 09 是 HITL 清单+诚实记账，不是全自动 matrix、也不是要求 owner 填满 OS×host。R2 Save 与多宿主/多 OS 保持 REQ，禁止 greening。
+- **Refs**: `mvp-support-matrix-pack.md`, issues/09, `file-dialog-support-matrix.md`
