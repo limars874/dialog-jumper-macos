@@ -14,12 +14,11 @@ public struct FileDialogDetector: FileDialogDetecting {
     public init() {}
 
     public func detect(authorization: AccessibilityAuthorization) -> FileDialogDetectionState {
+    public func detect(authorization: AccessibilityAuthorization) -> FileDialogDetectionState {
         guard authorization == .ready else { return .accessibilityPaused }
 
         let frontmost = NSWorkspace.shared.frontmostApplication
-        let hostName = frontmost?.localizedName
-        let hostBundle = frontmost?.bundleIdentifier
-        let preferredHost = (hostName ?? "").lowercased()
+        let preferredHost = (frontmost?.localizedName ?? "").lowercased()
 
         var hostMatched: EligibleFileDialog?
         var anyPanel: EligibleFileDialog?
@@ -31,6 +30,11 @@ public struct FileDialogDetector: FileDialogDetecting {
             let pid = application.processIdentifier
             guard isPanelVisiblyOpen(pid: pid) else { continue }
 
+            // Host identity comes from the panel service name, NOT current frontmost app.
+            // (Using frontmost as host made chrome stay when switching to another app.)
+            let serviceHostName = hostNameFromPanelService(application.localizedName)
+            let hostApp = resolvedHostApplication(named: serviceHostName)
+
             let hit = bestEligibleWindow(pid: pid)
                 ?? FileDialogFingerprintScore(
                     points: 2,
@@ -40,8 +44,8 @@ public struct FileDialogDetector: FileDialogDetecting {
 
             let candidate = EligibleFileDialog(
                 panelPID: pid,
-                hostName: hostNameFromPanelService(application.localizedName) ?? hostName,
-                hostBundleIdentifier: hostBundle,
+                hostName: serviceHostName ?? hostApp?.localizedName,
+                hostBundleIdentifier: hostApp?.bundleIdentifier,
                 panelKind: hit.panelKind,
                 score: max(hit.points, 2),
                 reasons: hit.reasons
@@ -72,12 +76,25 @@ public struct FileDialogDetector: FileDialogDetecting {
             return .eligible(
                 EligibleFileDialog(
                     panelPID: pid,
-                    hostName: hostName,
-                    hostBundleIdentifier: hostBundle,
+                    hostName: nil,
+                    hostBundleIdentifier: nil,
                     panelKind: hit.panelKind,
                     score: max(hit.points, 2),
                     reasons: hit.reasons
                 )
+            )
+        }
+
+        return .none
+    }
+
+    private func resolvedHostApplication(named name: String?) -> NSRunningApplication? {
+        guard let name, !name.isEmpty else { return nil }
+        let lower = name.lowercased()
+        return NSWorkspace.shared.runningApplications.first {
+            ($0.localizedName ?? "").lowercased() == lower
+        }
+    }
             )
         }
 

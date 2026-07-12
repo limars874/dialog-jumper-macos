@@ -15,21 +15,25 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     ///   - detection: current File Dialog detection
     ///   - showChrome: false when dialog exists but host is not frontmost (hide, don't destroy state)
     func sync(to detection: FileDialogDetectionState, showChrome: Bool = true) {
-        guard case .eligible(let dialog) = detection, showChrome else {
-            // Hide only — path text can remain for when user returns to the dialog.
-            panel?.orderOut(nil)
-            if case .eligible = detection {
-                // keep attachedPID for continuity
-            } else {
-                attachedPID = nil
-            }
+        guard case .eligible(let dialog) = detection else {
+            dismiss()
+            return
+        }
+        guard showChrome else {
+            hideChromePreservingState()
             return
         }
         guard let frame = FileDialogGeometry.frame(forPanelPID: dialog.panelPID) else {
-            panel?.orderOut(nil)
+            hideChromePreservingState()
             return
         }
         showOrUpdate(dialog: dialog, frame: frame)
+    }
+
+    private func hideChromePreservingState() {
+        guard let panel else { return }
+        panel.orderOut(nil)
+        panel.alphaValue = 0
     }
 
     func dismiss() {
@@ -73,9 +77,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let kind = dialog.panelKind?.rawValue ?? "panel"
         statusLabel?.stringValue = "Attached · \(kind) · \(host)"
 
-        if !panel.isVisible {
-            panel.orderFront(nil)
-        }
+        panel.alphaValue = 1
+        panel.orderFront(nil)
     }
 
     private func ensurePanel() -> NSPanel {

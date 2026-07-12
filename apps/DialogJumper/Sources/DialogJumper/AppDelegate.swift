@@ -48,6 +48,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         attachedToolbar.onJump = { [weak self] raw in
             self?.performJump(rawPath: raw)
         }
+        // Hide/show chrome as soon as the user switches apps (don't wait for poll).
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(frontAppChanged),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
         refreshFromSystem()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.refreshFromSystem()
@@ -56,6 +63,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             RunLoop.main.add(pollTimer, forMode: .common)
         }
         NSLog("[DialogJumper] launched, initial auth refresh done")
+    }
+
+    @objc private func frontAppChanged(_ note: Notification) {
+        refreshFromSystem()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
