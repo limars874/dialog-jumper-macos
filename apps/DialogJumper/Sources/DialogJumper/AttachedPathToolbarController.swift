@@ -242,11 +242,23 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
         let w = chromeSize.width
         let h = chromeSize.height
-        // 栅格：inset=12，左列 drag=22，主控件高=28，右操作=20
+        // 栅格：inset=12，左列 drag=22
+        // 高度：跟 NSSegmentedControl 真实绘制高度对齐（frame=28 时 segment 只画更矮一截）
         let inset = contentInset
         let rail = dragHandleWidth
         let gap = controlGap
-        let ch = controlHeight
+        let chromeW = w - inset * 2
+
+        let segmentProbe = NSSegmentedControl()
+        segmentProbe.segmentCount = 4
+        segmentProbe.setLabel("Rec", forSegment: 0)
+        segmentProbe.setLabel("Fav", forSegment: 1)
+        segmentProbe.setLabel("Find", forSegment: 2)
+        segmentProbe.setLabel("Zox", forSegment: 3)
+        segmentProbe.segmentStyle = .rounded
+        segmentProbe.controlSize = .regular
+        segmentProbe.sizeToFit()
+        let ch = max(24, ceil(segmentProbe.fittingSize.height))
 
         // status + more（小字，不抢主层级）
         let status = makeLabel("", bold: false, size: 11)
@@ -293,8 +305,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         overflow.addItem(copyPath)
         moreMenu = overflow
 
-        // Path / Jump / segment 同宽 chromeW；Path 为内嵌拖柄+清除的一体框
-        let chromeW = w - inset * 2
+        // Path / Jump / segment 同宽 chromeW、同高 ch（segment 自然高度）
         let pathRowY = h - 36 - ch
 
         let pathChrome = PathInputChromeView(frame: NSRect(x: inset, y: pathRowY, width: chromeW, height: ch))
@@ -379,7 +390,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         applyJumpButtonAppearance()
 
 
-        // Segment 与 Path / Jump 同宽 chromeW（↻ 已在 status 行）
+        // Segment 与 Path / Jump 同宽同高（ch = 系统 segment 真实高度）
         let segY = jumpY - gap - ch
         let segment = NSSegmentedControl()
         segment.segmentCount = 4
