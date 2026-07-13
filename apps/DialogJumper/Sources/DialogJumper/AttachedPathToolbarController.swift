@@ -42,6 +42,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var listDocument: NSView?
     private var emptyListLabel: NSTextField?
     private var pathClearButton: NSButton?
+    private var pathChrome: PathInputChromeView?
     private var jumpButton: NSButton?
     private var moreButton: TinyActionButton?
     private var moreMenu: NSMenu?
@@ -264,9 +265,14 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         overflow.addItem(copyPath)
         moreMenu = overflow
 
-        // Path 行：与列表同左列 [drag | field | clear]
+        // Path / Jump / segment 同宽 chromeW；Path 为内嵌拖柄+清除的一体框
+        let chromeW = w - inset * 2
         let pathRowY = h - 36 - ch
-        let pathHandle = FolderDragHandleView(frame: NSRect(x: inset, y: pathRowY, width: rail, height: ch))
+
+        let pathChrome = PathInputChromeView(frame: NSRect(x: inset, y: pathRowY, width: chromeW, height: ch))
+        self.pathChrome = pathChrome
+
+        let pathHandle = FolderDragHandleView(frame: NSRect(x: 2, y: 0, width: rail, height: ch))
         pathHandle.pathProvider = { [weak self] in
             self?.resolvedPathFieldFolder()
         }
@@ -277,12 +283,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathDragHandle = pathHandle
 
         let clearW: CGFloat = 20
-        let fieldX = inset + rail + gap
-        let fieldW = w - fieldX - gap - clearW - inset
-        let field = NSTextField(frame: NSRect(x: fieldX, y: pathRowY, width: fieldW, height: ch))
+        let field = NSTextField(frame: NSRect(
+            x: 2 + rail,
+            y: 3,
+            width: chromeW - 2 - rail - clearW - 4,
+            height: ch - 6
+        ))
         field.placeholderString = "Paste path…  / or ~"
         field.isEditable = true
         field.isSelectable = true
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
         field.usesSingleLineMode = true
         field.cell?.isScrollable = true
         field.font = .systemFont(ofSize: 13)
@@ -291,7 +303,12 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         field.action = #selector(jumpFromField)
         pathField = field
 
-        let clear = NSButton(frame: NSRect(x: w - inset - clearW, y: pathRowY + (ch - 20) / 2, width: clearW, height: 20))
+        let clear = NSButton(frame: NSRect(
+            x: chromeW - clearW - 4,
+            y: (ch - 18) / 2,
+            width: clearW,
+            height: 18
+        ))
         clear.bezelStyle = .inline
         clear.isBordered = false
         clear.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Clear path")?
@@ -304,9 +321,14 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         clear.toolTip = "Clear path"
         pathClearButton = clear
 
-        // Jump：与 Path 行同高、同总宽（inset 到 inset）
+        pathChrome.addSubview(pathHandle)
+        pathChrome.addSubview(field)
+        pathChrome.addSubview(clear)
+        pathChrome.refreshAppearance()
+
+        // Jump：与 Path chrome 同宽同高
         let jumpY = pathRowY - gap - ch
-        let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: w - inset * 2, height: ch))
+        let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: chromeW, height: ch))
         jump.title = "Jump"
         jump.bezelStyle = .rounded
         jump.controlSize = .regular
@@ -316,7 +338,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         jump.keyEquivalent = "\r"
         jumpButton = jump
 
-        // Segment 与 Jump 同高一档
+        // Segment 行总宽 = chromeW（↻ 收在右缘内）
         let segY = jumpY - gap - ch
         let segment = NSSegmentedControl()
         segment.segmentCount = 4
@@ -330,10 +352,10 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         segment.target = self
         segment.action = #selector(listTabChanged(_:))
         segment.selectedSegment = ListTab.recents.rawValue
-        segment.frame = NSRect(x: inset, y: segY, width: w - inset * 2 - 28, height: ch)
+        segment.frame = NSRect(x: inset, y: segY, width: chromeW - 28, height: ch)
         listSegment = segment
 
-        let refresh = TinyActionButton(frame: NSRect(x: w - inset - 26, y: segY, width: 26, height: ch))
+        let refresh = TinyActionButton(frame: NSRect(x: inset + chromeW - 26, y: segY, width: 26, height: ch))
         refresh.glyph = "↻"
         refresh.glyphFontSize = 13
         refresh.toolTip = "Refresh"
@@ -345,16 +367,15 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let empty = makeLabel("Jump once to fill Recents", bold: false, size: 11)
         empty.textColor = .tertiaryLabelColor
         empty.alignment = .center
-        empty.frame = NSRect(x: inset, y: 40, width: w - inset * 2, height: 18)
+        empty.frame = NSRect(x: inset, y: 40, width: chromeW, height: 18)
         emptyListLabel = empty
 
-        let doc = NSView(frame: NSRect(x: 0, y: 0, width: w - inset * 2, height: 1))
+        let doc = NSView(frame: NSRect(x: 0, y: 0, width: chromeW, height: 1))
         listDocument = doc
 
         let listBottom: CGFloat = 12
         let listTop = segY - gap
-        // 列表左缘 = inset，行内拖柄 x=0 → 与 Path 拖柄列对齐
-        let scroll = NSScrollView(frame: NSRect(x: inset, y: listBottom, width: w - inset * 2, height: max(40, listTop - listBottom)))
+        let scroll = NSScrollView(frame: NSRect(x: inset, y: listBottom, width: chromeW, height: max(40, listTop - listBottom)))
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = false
         scroll.autohidesScrollers = true
@@ -365,9 +386,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
         root.addSubview(status)
         root.addSubview(more)
-        root.addSubview(pathHandle)
-        root.addSubview(field)
-        root.addSubview(clear)
+        root.addSubview(pathChrome)
         root.addSubview(jump)
         root.addSubview(segment)
         root.addSubview(refresh)
@@ -1607,5 +1626,43 @@ private final class FolderURLPasteboardWriter: NSObject, NSPasteboardWriting {
             return url.path
         }
         return nil
+    }
+}
+
+// MARK: - Path input chrome (single box: drag + field + clear)
+
+/// 一体 Path 框：圆角描边 + 文本底，内嵌拖柄与清除；深浅色跟系统。
+private final class PathInputChromeView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.cornerRadius = 6
+        layer?.masksToBounds = true
+        layer?.borderWidth = 1
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        refreshAppearance()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refreshAppearance()
+    }
+
+    func refreshAppearance() {
+        wantsLayer = true
+        layer?.cornerRadius = 6
+        layer?.borderWidth = 1
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            self.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+            self.layer?.borderColor = NSColor.separatorColor.cgColor
+        }
     }
 }
