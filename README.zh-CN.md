@@ -11,7 +11,9 @@ macOS 菜单栏工具：在**系统标准 Open / Save 对话框**里快速 **Fol
 
 ## 截图
 
-![Dialog Jumper 侧栏](https://cdn.jsdelivr.net/gh/limars874/dialog-jumper-macos@main/docs/screenshots/side-chrome.png)
+<p align="left">
+  <img src="https://cdn.jsdelivr.net/gh/limars874/dialog-jumper-macos@main/docs/screenshots/side-chrome.png" alt="Dialog Jumper 侧栏" width="320" />
+</p>
 
 附着在系统 Open 对话框旁的侧栏：Path、Jump、Rec / Fav / Find / Zox，以及拖柄 / 收藏 / 复制。
 
