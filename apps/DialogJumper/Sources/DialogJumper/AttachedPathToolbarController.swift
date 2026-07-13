@@ -121,6 +121,26 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         statusLabel?.textColor = .secondaryLabelColor
     }
 
+    /// 全宽 Jump：accent 底 + 白字（避免系统 bezel 左右缩进）
+    private func applyJumpButtonAppearance() {
+        guard let jump = jumpButton else { return }
+        jump.wantsLayer = true
+        jump.layer?.cornerRadius = 6
+        jump.layer?.masksToBounds = true
+        let title = "Jump"
+        let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        jump.effectiveAppearance.performAsCurrentDrawingAppearance {
+            jump.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            let style = NSMutableParagraphStyle()
+            style.alignment = .center
+            jump.attributedTitle = NSAttributedString(string: title, attributes: [
+                .font: font,
+                .foregroundColor: NSColor.white,
+                .paragraphStyle: style
+            ])
+        }
+    }
+
     /// Refresh Recents rows (call after successful jump / on show).
     func setRecents(_ entries: [RecentFolderEntry]) {
         recentEntries = entries
@@ -339,25 +359,24 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathChrome.addSubview(pathHandle)
         pathChrome.addSubview(field)
         pathChrome.addSubview(clear)
-        // clear 必须在 field 之上，否则会被文字层挡住
         pathChrome.addSubview(clear, positioned: .above, relativeTo: field)
         pathChrome.refreshAppearance()
 
-
-        // Jump：与 Path chrome 同宽同高；accent 作主按钮
+        // Jump：与 Path 同宽。系统 rounded bezel 自带左右缩进会「小一圈」，
+        // 改无边框 + layer 铺满 chromeW。
         let jumpY = pathRowY - gap - ch
         let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: chromeW, height: ch))
-        jump.title = "Jump"
-        jump.bezelStyle = .rounded
-        jump.controlSize = .regular
+        jump.isBordered = false
+        jump.wantsLayer = true
+        jump.layer?.cornerRadius = 6
+        jump.layer?.masksToBounds = true
         jump.font = .systemFont(ofSize: 13, weight: .semibold)
-        if #available(macOS 11.0, *) {
-            jump.bezelColor = .controlAccentColor
-        }
         jump.target = self
         jump.action = #selector(jumpFromField)
         jump.keyEquivalent = "\r"
+        jump.focusRingType = .none
         jumpButton = jump
+        applyJumpButtonAppearance()
 
 
         // Segment 与 Path / Jump 同宽 chromeW（↻ 已在 status 行）
