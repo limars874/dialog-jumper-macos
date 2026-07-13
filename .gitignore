@@ -1,19 +1,21 @@
 .DS_Store
 .env
 .env.*
-
-# SwiftPM
 .build/
-*.xcodeproj/
+**/.build/
 DerivedData/
-
-# Local agent workstation (kept on disk, not published)
+*.xcodeproj/
+apps/DialogJumper/dist/
+apps/DialogJumper/.signing/
+.dialog-jumper-dev-signing/
+**/.dialog-jumper-dev-signing/
+.idea/
+.vscode/
+# Workstation (private monorepo only; never sync here)
 .omp/
 .scratch/
 AGENTS.md
 CLAUDE.md
-
-# Agent memory / process docs (local only; product docs stay under docs/screenshots)
 docs/progress.md
 docs/journal.md
 docs/learnings.md
@@ -23,11 +25,3 @@ docs/roadmap.md
 docs/notes/
 docs/agents/
 docs/ui-mockups/
-
-# Local code-signing secrets (never commit)
-.dialog-jumper-dev-signing/
-**/.dialog-jumper-dev-signing/
-
-# Built app bundle (rebuilt by scripts)
-apps/DialogJumper/dist/
-apps/DialogJumper/.signing/
