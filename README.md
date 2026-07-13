@@ -11,7 +11,7 @@ A side chrome attaches next to the file dialog with Path input, Recents, Favorit
 
 ## Screenshot
 
-![Dialog Jumper side chrome](docs/screenshots/side-chrome.png)
+![Dialog Jumper side chrome](https://cdn.jsdelivr.net/gh/limars874/dialog-jumper-macos@main/docs/screenshots/side-chrome.png)
 
 Side panel next to a system Open dialog: Path, Jump, Rec / Fav / Find / Zox, list actions (drag · favorite · copy).
 
