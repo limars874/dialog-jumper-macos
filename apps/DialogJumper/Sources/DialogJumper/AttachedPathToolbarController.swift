@@ -362,10 +362,15 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         clear.imagePosition = .imageOnly
         clear.contentTintColor = .secondaryLabelColor
         clear.target = self
-        clear.action = #selector(clearPathField)
-        clear.isHidden = true
-        clear.toolTip = "Clear path"
-        pathClearButton = clear
+        // Jump：与 Path 同宽意图；实心层视觉上会比描边/segment 更“胀”，左右各收 2pt
+        let jumpOpticalInset: CGFloat = 2
+        let jumpY = pathRowY - gap - ch
+        let jump = NSButton(frame: NSRect(
+            x: inset + jumpOpticalInset,
+            y: jumpY,
+            width: chromeW - jumpOpticalInset * 2,
+            height: ch
+        ))
 
         pathChrome.addSubview(pathHandle)
         pathChrome.addSubview(field)
