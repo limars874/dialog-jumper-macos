@@ -1,12 +1,12 @@
 # Dialog Jumper
 
-macOS menu bar tool for **Folder Jump** inside **system Open / Save dialogs**. It never clicks Open/Save for you.
+macOS **menu bar** tool for fast **folder navigation** inside **system Open / Save dialogs**.
 
-A side chrome attaches next to the file dialog with Path input, Recents, Favorites, open **Finder** windows, and **zoxide** frecency paths.
-
-> Lab / personal-use stage. Not notarized; expect Gatekeeper friction on download.
+It attaches a small side panel next to the dialog. You jump by path, recents, favorites, open Finder windows, or [zoxide](https://github.com/ajeetdsouza/zoxide) — and **it never clicks Open or Save for you**.
 
 **中文说明：** [README.zh-CN.md](./README.zh-CN.md)
+
+> Lab / personal-use stage. **Not notarized** (no Apple Developer ID). Gatekeeper will warn on first open.
 
 ## Screenshot
 
@@ -14,126 +14,80 @@ A side chrome attaches next to the file dialog with Path input, Recents, Favorit
   <img src="https://cdn.jsdelivr.net/gh/limars874/dialog-jumper-macos@main/docs/screenshots/side-chrome.png" alt="Dialog Jumper side chrome" width="320" />
 </p>
 
-Side panel next to a system Open dialog: Path, Jump, Rec / Fav / Find / Zox, list actions (drag · favorite · copy).
+## Install (from Release)
 
-### Quick start
-1. Enable **Accessibility** for Dialog Jumper.  
-2. Open a system file dialog (e.g. TextEdit → **File → Open…**).  
-3. Use **Path + Jump**, a list row, or **drag the handle** onto the dialog (native navigation).  
-4. Dialog Jumper **never** presses Open/Save for you.  
-5. Unsigned builds: right-click → Open, or `xattr -cr DialogJumper.app`.
+1. Download the latest **macOS zip** from [Releases](https://github.com/limars874/dialog-jumper-macos/releases)  
+   - Current CI builds are **Apple silicon (arm64)** only.
+2. Unzip, then open once via **right-click → Open** (or run `xattr -cr DialogJumper.app` in Terminal).
+3. System Settings → Privacy & Security → **Accessibility** → enable **Dialog Jumper**.
+4. Optional:
+   - **Automation** → allow Dialog Jumper to control **Finder** (Find tab)
+   - Install **[zoxide](https://github.com/ajeetdsouza/zoxide)** (Zox tab)
 
----
+## Quick start
+
+1. Launch Dialog Jumper (menu bar shows **DJ** / **DJ!** / **DJ●**).
+2. Open a **system** file dialog (e.g. TextEdit → **File → Open…**).
+3. In the side panel:
+   - Type/paste a path (`/` or `~`) → **Jump**, or  
+   - Click a list row, or  
+   - **Drag the handle** onto the Open/Save panel (native navigation).
+4. Confirm the folder yourself with **Open** / **Save** — Dialog Jumper will not press those buttons.
+
+### Menu bar glyphs
+
+| Glyph | Meaning |
+| --- | --- |
+| **DJ** | Ready, no file dialog detected |
+| **DJ!** | Needs Accessibility (or revoked) |
+| **DJ●** | System file dialog detected |
 
 ## Features
 
-### Core Jump
-- Detects standard panels via **Open and Save Panel Service** (visible large window + AX fingerprint)
-- Side chrome **Path** field (`/` or `~`) → **Jump**
-- Jump sequence: `⇧⌘G` → path field → directed click → Return  
-- **Never** auto-clicks Open / Save
-- Bad path / no panel: visible failure, retry OK
+| Area | What you get |
+| --- | --- |
+| **Jump** | Go to a folder inside the system dialog without auto-submitting |
+| **Path** | Absolute paths and `~`; clear button; drag handle for native drop |
+| **Rec** | Last successful jumps in this app (max 10) |
+| **Fav** | Pinned folders, reorder / remove (max 40) |
+| **Find** | Open Finder window folders (max 50; refresh; needs Automation) |
+| **Zox** | `zoxide query -l` list (max 50; refresh; needs zoxide installed) |
+| **List actions** | Click / double-click (see **Jump on List Click** in the menu), ★ favorite, copy path, drag handle |
+| **Safety** | No auto Open/Save; failures show in the status line |
 
-### Side list (Rec | Fav | Find | Zox)
+**Not included (for now):** global hotkeys, fuzzy whole-disk folder search, syncing Finder sidebar favorites, multi-dialog side panels.
 
-| Tab | Source | Refresh |
-| --- | --- | --- |
-| **Rec** | Folders successfully jumped in this app (max 10) | Auto |
-| **Fav** | User pins, explicit order (max 40) | Auto |
-| **Find** | Paths of open Finder windows (max 50) | **↻** (needs Automation) |
-| **Zox** | `zoxide query -l` frecency (max 50) | **↻** (needs [zoxide](https://github.com/ajeetdsouza/zoxide)) |
-
-- **Single-click:** fill Path; whether it also Jumps is controlled by menu **Jump on List Click** (default on)
-- **Double-click:** always Jump
-- **Left drag handle:** drag a folder file URL onto the Open/Save panel for **native navigation** (separate from Jump click)
-- **★** Favorite · **⎘** copy full path  
-- Favorites rows: **↑ ↓ ✕**
-
-### Menu bar
-- **DJ** / **DJ!** / **DJ●** (fixed width, no jitter)
-- Accessibility · Folder Jump · Last jump
-- Focus Path · **Jump on List Click** · Recheck · Open Settings · Relaunch · About · Quit
-
-### Permissions
-- **Accessibility** required for Jump; revoke dismisses chrome and pauses Jump
-- **Automation (Finder)** only for Find tab refresh
-- Soft failures → status line; no prompt storms
-
-### Out of scope (for now)
-- Global hotkeys (use system **⇧⌘G** for Go to Folder)
-- Fuzzy on-device folder search / cloud index
-- Submitting Open/Save for the user; syncing Finder sidebar favorites
-
----
-
-## Run (development)
+## Build from source
 
 ```bash
 cd apps/DialogJumper
 ./scripts/run-dev-app.sh
 ```
 
-1. System Settings → Privacy & Security → **Accessibility** → enable Dialog Jumper  
-2. TextEdit → **File → Open…**  
-3. Menu bar shows **DJ●** and the side chrome appears  
-
-Dev signing uses a local identity (**DialogJumper Dev**). Do **not** enable Hardened Runtime (breaks cross-process AX).
-
 ```bash
 cd apps/DialogJumper && swift test && swift build
 ```
 
----
+Dev signing uses a local identity when configured. Do **not** enable Hardened Runtime if you need cross-process Accessibility.
 
-## Install from GitHub Release (no Developer ID)
-
-Releases are **ad-hoc signed and not notarized**. Expect Gatekeeper friction.
-
-1. Download the macOS zip from [Releases](../../releases)
-2. Unzip, then either right-click **DialogJumper.app** → Open, or `xattr -cr DialogJumper.app`
-3. Enable **Accessibility**
-4. Optional: **Automation** → Dialog Jumper controlling **Finder** (Find tab)
-5. Optional: install **zoxide** (Zox tab)
-
----
-
-## Publish (GitHub Actions)
-
-Push a version tag:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Or run the **Release** workflow manually (`workflow_dispatch` → draft release).
-
-Local package:
+Release zip locally:
 
 ```bash
 apps/DialogJumper/scripts/package-release.sh
-# → apps/DialogJumper/dist/DialogJumper-*-macos-*.zip
 ```
 
----
-
-## Layout
-
-| Path | Contents |
-| --- | --- |
-| `apps/DialogJumper/` | SwiftPM app + scripts |
-| `docs/screenshots/` | README screenshots |
-| `.github/workflows/` | Release CI |
-
-License: [MIT](./LICENSE)
-
----
+Maintainers: tag `v0.0.x` and push to trigger [GitHub Actions](https://github.com/limars874/dialog-jumper-macos/actions) release packaging (ad-hoc sign, not notarized). See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Requirements
 
 | Need | For |
 | --- | --- |
-| macOS 14+ | App |
+| macOS 14+ | Running the app |
 | Accessibility | Jump |
 | Finder Automation | Find tab |
 | [zoxide](https://github.com/ajeetdsouza/zoxide) | Zox tab |
+| Apple silicon build (current Release) | Prebuilt zip from CI |
+
+## License
+
+[MIT](./LICENSE)
