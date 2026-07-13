@@ -4,8 +4,7 @@ macOS menu bar tool for **Folder Jump** inside **system Open / Save dialogs**. I
 
 A side chrome attaches next to the file dialog with Path input, Recents, Favorites, open **Finder** windows, and **zoxide** frecency paths.
 
-> Lab / personal-use stage. Spec (Chinese research notes):  
-> [`.scratch/macos-file-dialog-jumper/assets/mvp-spec.md`](.scratch/macos-file-dialog-jumper/assets/mvp-spec.md)
+> Lab / personal-use stage. Not notarized; expect Gatekeeper friction on download.
 
 **中文说明：** [README.zh-CN.md](./README.zh-CN.md)
 
@@ -123,8 +122,8 @@ apps/DialogJumper/scripts/package-release.sh
 | Path | Contents |
 | --- | --- |
 | `apps/DialogJumper/` | SwiftPM app + scripts |
-| `docs/` | progress / constraints / journal |
-| `.scratch/` | research / MVP tickets (optional local) |
+| `docs/screenshots/` | README screenshots |
+| `.github/workflows/` | Release CI |
 
 License: [MIT](./LICENSE)
 

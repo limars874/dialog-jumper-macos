@@ -7,7 +7,22 @@
 *.xcodeproj/
 DerivedData/
 
-# Scratch / local agent state may be large; track selectively if needed
+# Local agent workstation (kept on disk, not published)
+.omp/
+.scratch/
+AGENTS.md
+CLAUDE.md
+
+# Agent memory / process docs (local only; product docs stay under docs/screenshots)
+docs/progress.md
+docs/journal.md
+docs/learnings.md
+docs/constraints.md
+docs/context.md
+docs/roadmap.md
+docs/notes/
+docs/agents/
+docs/ui-mockups/
 
 # Local code-signing secrets (never commit)
 .dialog-jumper-dev-signing/

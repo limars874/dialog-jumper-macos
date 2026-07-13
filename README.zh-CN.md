@@ -4,8 +4,7 @@ macOS 菜单栏工具：在**系统标准 Open / Save 对话框**里快速 **Fol
 
 侧栏附着在 File Dialog 旁，支持 Path 输入、Recents、Favorites、打开的 Finder 窗口、以及 **zoxide** 常用目录。
 
-> Lab / 自用阶段。完整产品规格见  
-> [`.scratch/macos-file-dialog-jumper/assets/mvp-spec.md`](.scratch/macos-file-dialog-jumper/assets/mvp-spec.md)
+> Lab / 自用阶段。未公证，下载后需自行绕过 Gatekeeper。
 
 **English:** [README.md](./README.md)
 
@@ -122,7 +121,7 @@ apps/DialogJumper/scripts/package-release.sh
 | 路径 | 内容 |
 | --- | --- |
 | `apps/DialogJumper/` | SwiftPM 产品 + 脚本 |
-| `docs/` | progress / constraints / journal |
-| `.scratch/` | 研究 / MVP 票（本地可选） |
+| `docs/screenshots/` | README 截图 |
+| `.github/workflows/` | Release CI |
 
 许可证：[MIT](./LICENSE)
