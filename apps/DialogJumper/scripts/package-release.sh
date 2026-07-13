@@ -13,7 +13,7 @@ if [[ -z "$VERSION" ]]; then
   elif VERSION="$(git -C "$REPO_ROOT" describe --tags --always 2>/dev/null)"; then
     :
   else
-    VERSION="0.1.0-dev"
+    VERSION="0.0.1-dev"
   fi
 fi
 SAFE_VERSION="${VERSION#v}"
@@ -31,6 +31,8 @@ echo "==> swift build -c release"
 swift build -c release "${SWIFT_FLAGS[@]}"
 
 BIN_DIR="$(swift build -c release "${SWIFT_FLAGS[@]}" --show-bin-path)"
+BIN="$BIN_DIR/DialogJumper"
+if [[ ! -x "$BIN" ]]; then
   echo "error: release binary not found at $BIN" >&2
   exit 1
 fi
