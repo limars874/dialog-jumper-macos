@@ -283,21 +283,26 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathDragHandle = pathHandle
 
         let clearW: CGFloat = 20
-        // 框内：左柄 | 文字 | clear，与列表左列 x 对齐（柄从 0 起）
+        // 框内：左柄 | 文字 | clear；field 拉满高度 + 自定义 cell 垂直居中
         let field = NSTextField(frame: NSRect(
             x: rail,
-            y: 4,
-            width: chromeW - rail - clearW - 6,
-            height: ch - 8
+            y: 0,
+            width: chromeW - rail - clearW - 4,
+            height: ch
         ))
-        field.placeholderString = "Paste path…  / or ~"
-        field.isEditable = true
-        field.isSelectable = true
+        let centeredCell = VerticallyCenteredTextFieldCell(textCell: "")
+        centeredCell.isEditable = true
+        centeredCell.isSelectable = true
+        centeredCell.isScrollable = true
+        centeredCell.isBordered = false
+        centeredCell.drawsBackground = false
+        centeredCell.font = .systemFont(ofSize: 13)
+        centeredCell.placeholderString = "Paste path…  / or ~"
+        field.cell = centeredCell
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
         field.usesSingleLineMode = true
-        field.cell?.isScrollable = true
         field.font = .systemFont(ofSize: 13)
         field.delegate = self
         field.target = self
@@ -1669,5 +1674,44 @@ private final class PathInputChromeView: NSView {
             self.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
             self.layer?.borderColor = NSColor.separatorColor.cgColor
         }
+    }
+}
+
+/// 无边框 NSTextField 默认文字偏上；重写 drawingRect 做垂直居中。
+private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        let ideal = super.drawingRect(forBounds: rect)
+        let size = cellSize(forBounds: rect)
+        let dy = max(0, (ideal.height - size.height) / 2)
+        return NSRect(
+            x: ideal.origin.x,
+            y: ideal.origin.y + dy,
+            width: ideal.width,
+            height: size.height
+        )
+    }
+
+    override func select(
+        withFrame rect: NSRect,
+        in controlView: NSView,
+        editor textObj: NSText,
+        delegate: Any?,
+        start selStart: Int,
+        length selLength: Int
+    ) {
+        // 编辑态也用居中 rect，避免一聚焦又顶上去
+        let centered = drawingRect(forBounds: rect)
+        super.select(withFrame: centered, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
+    }
+
+    override func edit(
+        withFrame rect: NSRect,
+        in controlView: NSView,
+        editor textObj: NSText,
+        delegate: Any?,
+        event: NSEvent?
+    ) {
+        let centered = drawingRect(forBounds: rect)
+        super.edit(withFrame: centered, in: controlView, editor: textObj, delegate: delegate, event: event)
     }
 }
