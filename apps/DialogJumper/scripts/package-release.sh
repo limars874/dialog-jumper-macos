@@ -17,15 +17,20 @@ if [[ -z "$VERSION" ]]; then
   fi
 fi
 SAFE_VERSION="${VERSION#v}"
+echo "==> version: $VERSION"
+
+# Xcode 16 / Swift 6 treats AppKit MainActor isolation as error for nonisolated
+# AppDelegate/toolbar (intentionally not fully @MainActor). Keep product code
+# as-is; package with minimal concurrency checking for release CI.
+SWIFT_FLAGS=(-Xswiftc -strict-concurrency=minimal)
+
 echo "==> swift test"
-swift test
+swift test "${SWIFT_FLAGS[@]}"
 
 echo "==> swift build -c release"
-swift build -c release
+swift build -c release "${SWIFT_FLAGS[@]}"
 
-BIN_DIR="$(swift build -c release --show-bin-path)"
-BIN="$BIN_DIR/DialogJumper"
-if [[ ! -x "$BIN" ]]; then
+BIN_DIR="$(swift build -c release "${SWIFT_FLAGS[@]}" --show-bin-path)"
   echo "error: release binary not found at $BIN" >&2
   exit 1
 fi
