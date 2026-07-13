@@ -151,9 +151,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         guard let panel, let pathField else { return }
         if let clip = NSPasteboard.general.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-           PathResolver.looksLikePath(clip),
            pathField.stringValue.isEmpty {
-            pathField.stringValue = clip
+            setPathFieldText(clip)
         }
         NSApp.activate(ignoringOtherApps: true)
         panel.alphaValue = 1
@@ -282,12 +281,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathHandle.toolTip = "Drag Path folder onto Open/Save panel"
         pathDragHandle = pathHandle
 
-        let clearW: CGFloat = 20
-        // 框内：左柄 | 文字 | clear；field 拉满高度 + 自定义 cell 垂直居中
+        let clearW: CGFloat = 22
+        let clearPad: CGFloat = 4
+        // 框内：左柄 | 文字 | clear；field 勿盖住 clear
         let field = NSTextField(frame: NSRect(
             x: rail,
             y: 0,
-            width: chromeW - rail - clearW - 4,
+            width: max(40, chromeW - rail - clearW - clearPad * 2),
             height: ch
         ))
         let centeredCell = VerticallyCenteredTextFieldCell(textCell: "")
@@ -310,15 +310,15 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathField = field
 
         let clear = NSButton(frame: NSRect(
-            x: chromeW - clearW - 4,
-            y: (ch - 18) / 2,
+            x: chromeW - clearW - clearPad,
+            y: (ch - clearW) / 2,
             width: clearW,
-            height: 18
+            height: clearW
         ))
         clear.bezelStyle = .inline
         clear.isBordered = false
         clear.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Clear path")?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .regular))
         clear.imagePosition = .imageOnly
         clear.contentTintColor = .secondaryLabelColor
         clear.target = self
@@ -330,7 +330,10 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathChrome.addSubview(pathHandle)
         pathChrome.addSubview(field)
         pathChrome.addSubview(clear)
+        // clear 必须在 field 之上，否则会被文字层挡住
+        pathChrome.addSubview(clear, positioned: .above, relativeTo: field)
         pathChrome.refreshAppearance()
+
 
         // Jump：与 Path chrome 同宽同高；accent 作主按钮
         let jumpY = pathRowY - gap - ch
@@ -895,6 +898,15 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private func updatePathClearVisibility() {
         let text = pathField?.stringValue ?? ""
         pathClearButton?.isHidden = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // 始终置顶，避免被 field 盖住
+        if let clear = pathClearButton, let chrome = pathChrome, let field = pathField {
+            chrome.addSubview(clear, positioned: .above, relativeTo: field)
+        }
+    }
+
+    private func setPathFieldText(_ text: String) {
+        pathField?.stringValue = text
+        updatePathClearVisibility()
     }
 
     func controlTextDidChange(_ obj: Notification) {
@@ -931,7 +943,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let index = (sender as? NSControl)?.tag ?? -1
         guard recentEntries.indices.contains(index) else { return }
         let path = recentEntries[index].path
-        pathField?.stringValue = path
+        setPathFieldText(path)
         onAddFavoriteFromPath?(path)
     }
 
@@ -956,7 +968,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let index = (sender as? NSControl)?.tag ?? -1
         guard finderEntries.indices.contains(index) else { return }
         let path = finderEntries[index].path
-        pathField?.stringValue = path
+        setPathFieldText(path)
         onAddFavoriteFromPath?(path)
     }
 
@@ -981,7 +993,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let index = (sender as? NSControl)?.tag ?? -1
         guard zoxideEntries.indices.contains(index) else { return }
         let path = zoxideEntries[index].path
-        pathField?.stringValue = path
+        setPathFieldText(path)
         onAddFavoriteFromPath?(path)
     }
 
@@ -1020,7 +1032,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         guard let index, entries.indices.contains(index) else { return }
         let entry = entries[index]
         if entry.isAvailable {
-            pathField?.stringValue = entry.path
+            setPathFieldText(entry.path)
             if forceJump || jumpOnListClick {
                 setStatus("Jumping…")
                 onJump?(entry.path)
