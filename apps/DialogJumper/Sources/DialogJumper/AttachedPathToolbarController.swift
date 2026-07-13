@@ -43,7 +43,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var emptyListLabel: NSTextField?
     private var pathClearButton: NSButton?
     private var jumpButton: NSButton?
-    private var moreButton: NSPopUpButton?
+    private var moreButton: TinyActionButton?
+    private var moreMenu: NSMenu?
     private var pathDragHandle: FolderDragHandleView?
     private var refreshDynamicButton: TinyActionButton?
     private var attachedPID: pid_t?
@@ -224,32 +225,31 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         status.frame = NSRect(x: 12, y: h - 28, width: w - 24 - 28, height: 16)
         statusLabel = status
 
-        let more = NSPopUpButton(frame: NSRect(x: w - 12 - 26, y: h - 30, width: 26, height: 20), pullsDown: true)
-        more.isBordered = false
-        more.imagePosition = .imageOnly
-        let moreMenu = NSMenu()
-        let placeholder = NSMenuItem()
-        let dots = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
-        placeholder.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "More")?
-            .withSymbolConfiguration(dots)
-        moreMenu.addItem(placeholder)
+        // 纯三点 + 加大热区/hover；菜单单独弹出（不用 NSPopUpButton 的圆圈+箭头）
+        let more = TinyActionButton(frame: NSRect(x: w - 12 - 28, y: h - 32, width: 28, height: 24))
+        more.glyph = "···"
+        more.glyphFontSize = 14
+        more.toolTip = "More"
+        more.target = self
+        more.action = #selector(showMoreMenu(_:))
+        moreButton = more
+
+        let overflow = NSMenu()
         let addFav = NSMenuItem(
             title: "Add Path to Favorites",
             action: #selector(addFavoriteFromField),
             keyEquivalent: ""
         )
         addFav.target = self
-        moreMenu.addItem(addFav)
+        overflow.addItem(addFav)
         let copyPath = NSMenuItem(
             title: "Copy Path Field",
             action: #selector(copyPathField),
             keyEquivalent: ""
         )
         copyPath.target = self
-        moreMenu.addItem(copyPath)
-        more.menu = moreMenu
-        more.toolTip = "More"
-        moreButton = more
+        overflow.addItem(copyPath)
+        moreMenu = overflow
 
         let field = NSTextField(frame: NSRect(x: 12, y: h - 58, width: w - 24 - 22, height: 24))
         field.placeholderString = "Paste path…  / or ~"
@@ -816,6 +816,12 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathField?.stringValue = ""
         updatePathClearVisibility()
         setStatus("")
+    }
+
+    @objc private func showMoreMenu(_ sender: Any?) {
+        guard let moreMenu, let button = moreButton else { return }
+        let point = NSPoint(x: 0, y: button.bounds.height + 2)
+        moreMenu.popUp(positioning: nil, at: point, in: button)
     }
 
     @objc private func copyPathField() {
