@@ -13,7 +13,12 @@ let package = Package(
         .target(name: "DialogJumperCore"),
         .executableTarget(
             name: "DialogJumper",
-            dependencies: ["DialogJumperCore"]
+            dependencies: ["DialogJumperCore"],
+            // AppKit UI types are MainActor-isolated under Swift 6; this target is
+            // intentionally not fully annotated @MainActor (timer + AX callbacks).
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
         ),
         .testTarget(
             name: "DialogJumperCoreTests",
