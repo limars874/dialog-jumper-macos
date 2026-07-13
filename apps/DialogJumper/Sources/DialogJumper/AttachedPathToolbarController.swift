@@ -62,11 +62,20 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private let zoxideReader: any ZoxideReading
 
     private let chromeSize = CGSize(width: 300, height: 420)
-    private let rowHeight: CGFloat = 30
-    private let favoriteManageWidth: CGFloat = 52
-    private let recentManageWidth: CGFloat = 46
-    /// 左侧专用拖柄，与 Jump 点击区分离
-    private let dragHandleWidth: CGFloat = 18
+    /// 列表行与顶区主控件统一高度
+    private let rowHeight: CGFloat = 28
+    private let controlHeight: CGFloat = 28
+    private let contentInset: CGFloat = 12
+    /// Path 行与列表共用的左拖柄列宽
+    private let dragHandleWidth: CGFloat = 22
+    private let controlGap: CGFloat = 4
+    /// 列表右侧操作钮统一热区
+    private let actionSize: CGFloat = 20
+    private let actionGap: CGFloat = 2
+    /// ☆ + 复制
+    private let recentManageWidth: CGFloat = 42
+    /// ↑ ↓ ✕
+    private let favoriteManageWidth: CGFloat = 64
 
     init(
         finderReader: any FinderWindowsReading = FinderWindowsReader(),
@@ -107,8 +116,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     func setStatus(_ text: String) {
         statusLabel?.stringValue = text
         statusLabel?.toolTip = text.isEmpty ? nil : text
-        // 有内容时略提对比度，空则保持 secondary
-        statusLabel?.textColor = text.isEmpty ? .secondaryLabelColor : .labelColor
+        // 统一 secondary，避免错误文案抢主层级
+        statusLabel?.textColor = .secondaryLabelColor
     }
 
     /// Refresh Recents rows (call after successful jump / on show).
@@ -213,8 +222,13 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
         let w = chromeSize.width
         let h = chromeSize.height
+        // 栅格：inset=12，左列 drag=22，主控件高=28，右操作=20
+        let inset = contentInset
+        let rail = dragHandleWidth
+        let gap = controlGap
+        let ch = controlHeight
 
-        // 顶区：status + ⋯ | Path + clear | 拖柄 + 大 Jump | segment
+        // status + more（小字，不抢主层级）
         let status = makeLabel("", bold: false, size: 11)
         status.textColor = .secondaryLabelColor
         status.usesSingleLineMode = true
@@ -222,13 +236,12 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         status.lineBreakMode = .byTruncatingTail
         status.cell?.lineBreakMode = .byTruncatingTail
         status.toolTip = nil
-        status.frame = NSRect(x: 12, y: h - 28, width: w - 24 - 28, height: 16)
+        status.frame = NSRect(x: inset, y: h - 26, width: w - inset * 2 - 32, height: 14)
         statusLabel = status
 
-        // 纯三点 + 加大热区/hover；菜单单独弹出（不用 NSPopUpButton 的圆圈+箭头）
-        let more = TinyActionButton(frame: NSRect(x: w - 12 - 28, y: h - 32, width: 28, height: 24))
+        let more = TinyActionButton(frame: NSRect(x: w - inset - 28, y: h - 32, width: 28, height: 24))
         more.glyph = "···"
-        more.glyphFontSize = 14
+        more.glyphFontSize = 13
         more.toolTip = "More"
         more.target = self
         more.action = #selector(showMoreMenu(_:))
@@ -251,18 +264,34 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         overflow.addItem(copyPath)
         moreMenu = overflow
 
-        let field = NSTextField(frame: NSRect(x: 12, y: h - 58, width: w - 24 - 22, height: 24))
+        // Path 行：与列表同左列 [drag | field | clear]
+        let pathRowY = h - 36 - ch
+        let pathHandle = FolderDragHandleView(frame: NSRect(x: inset, y: pathRowY, width: rail, height: ch))
+        pathHandle.pathProvider = { [weak self] in
+            self?.resolvedPathFieldFolder()
+        }
+        pathHandle.onDragRejected = { [weak self] message in
+            self?.setStatus(message)
+        }
+        pathHandle.toolTip = "Drag Path folder onto Open/Save panel"
+        pathDragHandle = pathHandle
+
+        let clearW: CGFloat = 20
+        let fieldX = inset + rail + gap
+        let fieldW = w - fieldX - gap - clearW - inset
+        let field = NSTextField(frame: NSRect(x: fieldX, y: pathRowY, width: fieldW, height: ch))
         field.placeholderString = "Paste path…  / or ~"
         field.isEditable = true
         field.isSelectable = true
         field.usesSingleLineMode = true
         field.cell?.isScrollable = true
+        field.font = .systemFont(ofSize: 13)
         field.delegate = self
         field.target = self
         field.action = #selector(jumpFromField)
         pathField = field
 
-        let clear = NSButton(frame: NSRect(x: w - 12 - 20, y: h - 56, width: 20, height: 20))
+        let clear = NSButton(frame: NSRect(x: w - inset - clearW, y: pathRowY + (ch - 20) / 2, width: clearW, height: 20))
         clear.bezelStyle = .inline
         clear.isBordered = false
         clear.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Clear path")?
@@ -275,26 +304,20 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         clear.toolTip = "Clear path"
         pathClearButton = clear
 
-        let pathHandle = FolderDragHandleView(frame: NSRect(x: 12, y: h - 96, width: 22, height: 32))
-        pathHandle.pathProvider = { [weak self] in
-            self?.resolvedPathFieldFolder()
-        }
-        pathHandle.onDragRejected = { [weak self] message in
-            self?.setStatus(message)
-        }
-        pathHandle.toolTip = "Drag Path folder onto Open/Save panel"
-        pathDragHandle = pathHandle
-
-        let jump = NSButton(frame: NSRect(x: 38, y: h - 96, width: w - 12 - 38, height: 32))
+        // Jump：与 Path 行同高、同总宽（inset 到 inset）
+        let jumpY = pathRowY - gap - ch
+        let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: w - inset * 2, height: ch))
         jump.title = "Jump"
         jump.bezelStyle = .rounded
-        jump.controlSize = .large
+        jump.controlSize = .regular
         jump.font = .systemFont(ofSize: 13, weight: .semibold)
         jump.target = self
         jump.action = #selector(jumpFromField)
         jump.keyEquivalent = "\r"
         jumpButton = jump
 
+        // Segment 与 Jump 同高一档
+        let segY = jumpY - gap - ch
         let segment = NSSegmentedControl()
         segment.segmentCount = 4
         segment.setLabel("Rec", forSegment: ListTab.recents.rawValue)
@@ -303,15 +326,16 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         segment.setLabel("Zox", forSegment: ListTab.zoxide.rawValue)
         segment.trackingMode = .selectOne
         segment.segmentStyle = .rounded
+        segment.controlSize = .regular
         segment.target = self
         segment.action = #selector(listTabChanged(_:))
         segment.selectedSegment = ListTab.recents.rawValue
-        segment.frame = NSRect(x: 12, y: h - 134, width: w - 24 - 30, height: 24)
+        segment.frame = NSRect(x: inset, y: segY, width: w - inset * 2 - 28, height: ch)
         listSegment = segment
 
-        let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 134, width: 26, height: 24))
+        let refresh = TinyActionButton(frame: NSRect(x: w - inset - 26, y: segY, width: 26, height: ch))
         refresh.glyph = "↻"
-        refresh.glyphFontSize = 14
+        refresh.glyphFontSize = 13
         refresh.toolTip = "Refresh"
         refresh.target = self
         refresh.action = #selector(refreshDynamicList)
@@ -321,15 +345,16 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let empty = makeLabel("Jump once to fill Recents", bold: false, size: 11)
         empty.textColor = .tertiaryLabelColor
         empty.alignment = .center
-        empty.frame = NSRect(x: 12, y: 40, width: w - 24, height: 18)
+        empty.frame = NSRect(x: inset, y: 40, width: w - inset * 2, height: 18)
         emptyListLabel = empty
 
-        let doc = NSView(frame: NSRect(x: 0, y: 0, width: w - 16, height: 1))
+        let doc = NSView(frame: NSRect(x: 0, y: 0, width: w - inset * 2, height: 1))
         listDocument = doc
 
         let listBottom: CGFloat = 12
-        let listTop = h - 146
-        let scroll = NSScrollView(frame: NSRect(x: 8, y: listBottom, width: w - 16, height: listTop - listBottom))
+        let listTop = segY - gap
+        // 列表左缘 = inset，行内拖柄 x=0 → 与 Path 拖柄列对齐
+        let scroll = NSScrollView(frame: NSRect(x: inset, y: listBottom, width: w - inset * 2, height: max(40, listTop - listBottom)))
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = false
         scroll.autohidesScrollers = true
@@ -340,9 +365,9 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
         root.addSubview(status)
         root.addSubview(more)
+        root.addSubview(pathHandle)
         root.addSubview(field)
         root.addSubview(clear)
-        root.addSubview(pathHandle)
         root.addSubview(jump)
         root.addSubview(segment)
         root.addSubview(refresh)
@@ -671,23 +696,25 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         row.autoresizingMask = [.width, .height]
         container.addSubview(row)
 
-        let btnW: CGFloat = 16
-        let btnH: CGFloat = 16
-        let midY = (rowHeight - btnH) / 2
+        let btn = actionSize
+        let midY = (rowHeight - btn) / 2
         let stackX = dragHandleWidth + jumpWidth + 2
 
         let up = makeTinyButton(title: "↑", tag: index, action: #selector(favoriteMoveUp(_:)))
-        up.frame = NSRect(x: stackX, y: midY, width: btnW, height: btnH)
+        up.glyphFontSize = 12
+        up.frame = NSRect(x: stackX, y: midY, width: btn, height: btn)
         up.toolTip = "Move up"
         up.isEnabled = index > 0
 
         let down = makeTinyButton(title: "↓", tag: index, action: #selector(favoriteMoveDown(_:)))
-        down.frame = NSRect(x: stackX + 17, y: midY, width: btnW, height: btnH)
+        down.glyphFontSize = 12
+        down.frame = NSRect(x: stackX + btn + actionGap, y: midY, width: btn, height: btn)
         down.toolTip = "Move down"
         down.isEnabled = index < favoriteEntries.count - 1
 
         let remove = makeTinyButton(title: "✕", tag: index, action: #selector(favoriteRemove(_:)))
-        remove.frame = NSRect(x: stackX + 34, y: midY, width: btnW, height: btnH)
+        remove.glyphFontSize = 12
+        remove.frame = NSRect(x: stackX + (btn + actionGap) * 2, y: midY, width: btn, height: btn)
         remove.toolTip = "Remove favorite"
 
         container.addSubview(up)
@@ -734,7 +761,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         container.addSubview(row)
 
         let stackX = dragHandleWidth + jumpWidth + 2
-        let midY = (rowHeight - 16) / 2
+        let midY = (rowHeight - actionSize) / 2
         leadingActions(stackX, midY, container)
         return container
     }
@@ -747,13 +774,14 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         star: Selector,
         copy: Selector
     ) {
-        let starW: CGFloat = 16
-        let starH: CGFloat = 16
-        let copyW: CGFloat = 24
-        let copyH: CGFloat = 24
+        let starW = actionSize
+        let starH = actionSize
+        let copyW = actionSize
+        let copyH = actionSize
         let favorited = isFavoritePath(path)
 
         let starBtn = makeTinyButton(title: favorited ? "★" : "☆", tag: index, action: star)
+        starBtn.glyphFontSize = 12
         if favorited {
             starBtn.glyphColor = .systemYellow
         }
@@ -766,9 +794,9 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         starBtn.toolTip = favorited ? "Already in Favorites" : "Add to Favorites"
 
         let copyBtn = makeTinyButton(title: "⎘", tag: index, action: copy)
-        copyBtn.glyphFontSize = 14
+        copyBtn.glyphFontSize = 12
         copyBtn.frame = NSRect(
-            x: stackX + starW + 4,
+            x: stackX + starW + actionGap,
             y: (rowHeight - copyH) / 2,
             width: copyW,
             height: copyH
