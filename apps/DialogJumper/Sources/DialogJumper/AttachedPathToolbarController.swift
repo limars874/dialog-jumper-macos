@@ -272,7 +272,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let pathChrome = PathInputChromeView(frame: NSRect(x: inset, y: pathRowY, width: chromeW, height: ch))
         self.pathChrome = pathChrome
 
-        let pathHandle = FolderDragHandleView(frame: NSRect(x: 2, y: 0, width: rail, height: ch))
+        let pathHandle = FolderDragHandleView(frame: NSRect(x: 0, y: 0, width: rail, height: ch))
         pathHandle.pathProvider = { [weak self] in
             self?.resolvedPathFieldFolder()
         }
@@ -283,11 +283,12 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathDragHandle = pathHandle
 
         let clearW: CGFloat = 20
+        // 框内：左柄 | 文字 | clear，与列表左列 x 对齐（柄从 0 起）
         let field = NSTextField(frame: NSRect(
-            x: 2 + rail,
-            y: 3,
-            width: chromeW - 2 - rail - clearW - 4,
-            height: ch - 6
+            x: rail,
+            y: 4,
+            width: chromeW - rail - clearW - 6,
+            height: ch - 8
         ))
         field.placeholderString = "Paste path…  / or ~"
         field.isEditable = true
@@ -325,6 +326,21 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathChrome.addSubview(field)
         pathChrome.addSubview(clear)
         pathChrome.refreshAppearance()
+
+        // Jump：与 Path chrome 同宽同高；accent 作主按钮
+        let jumpY = pathRowY - gap - ch
+        let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: chromeW, height: ch))
+        jump.title = "Jump"
+        jump.bezelStyle = .rounded
+        jump.controlSize = .regular
+        jump.font = .systemFont(ofSize: 13, weight: .semibold)
+        if #available(macOS 11.0, *) {
+            jump.bezelColor = .controlAccentColor
+        }
+        jump.target = self
+        jump.action = #selector(jumpFromField)
+        jump.keyEquivalent = "\r"
+        jumpButton = jump
 
         // Jump：与 Path chrome 同宽同高
         let jumpY = pathRowY - gap - ch
