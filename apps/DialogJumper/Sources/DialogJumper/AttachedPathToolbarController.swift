@@ -235,9 +235,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         status.maximumNumberOfLines = 1
         status.lineBreakMode = .byTruncatingTail
         status.cell?.lineBreakMode = .byTruncatingTail
-        status.toolTip = nil
-        status.frame = NSRect(x: inset, y: h - 26, width: w - inset * 2 - 32, height: 14)
+        status.frame = NSRect(x: inset, y: h - 26, width: w - inset * 2 - 60, height: 14)
         statusLabel = status
+
+        // ↻ 与 ⋯ 同排，不挤 segment 宽度
+        let refresh = TinyActionButton(frame: NSRect(x: w - inset - 56, y: h - 32, width: 26, height: 24))
+        refresh.glyph = "↻"
+        refresh.glyphFontSize = 13
+        refresh.toolTip = "Refresh"
+        refresh.target = self
+        refresh.action = #selector(refreshDynamicList)
+        refresh.isHidden = true
+        refreshDynamicButton = refresh
 
         let more = TinyActionButton(frame: NSRect(x: w - inset - 28, y: h - 32, width: 28, height: 24))
         more.glyph = "···"
@@ -351,7 +360,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         jumpButton = jump
 
 
-        // Segment 行总宽 = chromeW（↻ 收在右缘内）
+        // Segment 与 Path / Jump 同宽 chromeW（↻ 已在 status 行）
         let segY = jumpY - gap - ch
         let segment = NSSegmentedControl()
         segment.segmentCount = 4
@@ -365,17 +374,8 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         segment.target = self
         segment.action = #selector(listTabChanged(_:))
         segment.selectedSegment = ListTab.recents.rawValue
-        segment.frame = NSRect(x: inset, y: segY, width: chromeW - 28, height: ch)
+        segment.frame = NSRect(x: inset, y: segY, width: chromeW, height: ch)
         listSegment = segment
-
-        let refresh = TinyActionButton(frame: NSRect(x: inset + chromeW - 26, y: segY, width: 26, height: ch))
-        refresh.glyph = "↻"
-        refresh.glyphFontSize = 13
-        refresh.toolTip = "Refresh"
-        refresh.target = self
-        refresh.action = #selector(refreshDynamicList)
-        refresh.isHidden = true
-        refreshDynamicButton = refresh
 
         let empty = makeLabel("Jump once to fill Recents", bold: false, size: 11)
         empty.textColor = .tertiaryLabelColor
@@ -398,11 +398,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         listScroll = scroll
 
         root.addSubview(status)
+        root.addSubview(refresh)
         root.addSubview(more)
         root.addSubview(pathChrome)
         root.addSubview(jump)
         root.addSubview(segment)
-        root.addSubview(refresh)
         root.addSubview(empty)
         root.addSubview(scroll)
 
