@@ -9,6 +9,19 @@ A side chrome attaches next to the file dialog with Path input, Recents, Favorit
 
 **中文说明：** [README.zh-CN.md](./README.zh-CN.md)
 
+## Screenshot
+
+![Dialog Jumper side chrome](docs/screenshots/side-chrome.png)
+
+Side panel next to a system Open dialog: Path, Jump, Rec / Fav / Find / Zox, list actions (drag · favorite · copy).
+
+### Quick start
+1. Enable **Accessibility** for Dialog Jumper.  
+2. Open a system file dialog (e.g. TextEdit → **File → Open…**).  
+3. Use **Path + Jump**, a list row, or **drag the handle** onto the dialog (native navigation).  
+4. Dialog Jumper **never** presses Open/Save for you.  
+5. Unsigned builds: right-click → Open, or `xattr -cr DialogJumper.app`.
+
 ---
 
 ## Features

@@ -9,6 +9,19 @@ macOS 菜单栏工具：在**系统标准 Open / Save 对话框**里快速 **Fol
 
 **English:** [README.md](./README.md)
 
+## 截图
+
+![Dialog Jumper 侧栏](docs/screenshots/side-chrome.png)
+
+附着在系统 Open 对话框旁的侧栏：Path、Jump、Rec / Fav / Find / Zox，以及拖柄 / 收藏 / 复制。
+
+### 30 秒上手
+1. 打开 **辅助功能**，勾选 Dialog Jumper。  
+2. 打开系统文件对话框（如 TextEdit → **文件 → 打开…**）。  
+3. 用 **Path + Jump**、点列表，或 **拖左侧柄** 到对话框（系统原生导航）。  
+4. **不会**替你点 Open/Save。  
+5. 未公证包：右键 → 打开，或 `xattr -cr DialogJumper.app`。
+
 ---
 
 ## 功能一览
