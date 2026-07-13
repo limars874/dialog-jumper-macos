@@ -754,6 +754,9 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let favorited = isFavoritePath(path)
 
         let starBtn = makeTinyButton(title: favorited ? "★" : "☆", tag: index, action: star)
+        if favorited {
+            starBtn.glyphColor = .systemYellow
+        }
         starBtn.frame = NSRect(
             x: stackX,
             y: (rowHeight - starH) / 2,
@@ -1221,6 +1224,10 @@ private final class TinyActionButton: NSControl {
     var glyphFontSize: CGFloat = 11 {
         didSet { needsDisplay = true }
     }
+    /// 非 nil 时覆盖默认灰/label 色（已收藏 ★ 用 systemYellow）
+    var glyphColor: NSColor? {
+        didSet { needsDisplay = true }
+    }
 
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
@@ -1317,9 +1324,16 @@ private final class TinyActionButton: NSControl {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         let font = NSFont.systemFont(ofSize: glyphFontSize, weight: .semibold)
-        let color: NSColor = isPressed
-            ? .controlAccentColor
-            : (isHovered ? .labelColor : .secondaryLabelColor)
+        let color: NSColor
+        if let glyphColor {
+            color = isPressed ? glyphColor.blended(withFraction: 0.2, of: .controlAccentColor) ?? glyphColor : glyphColor
+        } else if isPressed {
+            color = .controlAccentColor
+        } else if isHovered {
+            color = .labelColor
+        } else {
+            color = .secondaryLabelColor
+        }
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: color
