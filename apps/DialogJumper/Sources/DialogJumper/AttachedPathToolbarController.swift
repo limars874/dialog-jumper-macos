@@ -362,7 +362,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         clear.imagePosition = .imageOnly
         clear.contentTintColor = .secondaryLabelColor
         clear.target = self
-        // Jump：与 Path 同宽意图；实心层视觉上会比描边/segment 更“胀”，左右各收 2pt
+        clear.action = #selector(clearPathField)
+        clear.isHidden = true
+        clear.toolTip = "Clear path"
+        pathClearButton = clear
+
+        pathChrome.addSubview(pathHandle)
+        pathChrome.addSubview(field)
+        pathChrome.addSubview(clear)
+        pathChrome.addSubview(clear, positioned: .above, relativeTo: field)
+        pathChrome.refreshAppearance()
+
+        // Jump 实心层视觉上比描边/segment 更胀，左右各收 2pt
         let jumpOpticalInset: CGFloat = 2
         let jumpY = pathRowY - gap - ch
         let jump = NSButton(frame: NSRect(
@@ -371,17 +382,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
             width: chromeW - jumpOpticalInset * 2,
             height: ch
         ))
-
-        pathChrome.addSubview(pathHandle)
-        pathChrome.addSubview(field)
-        pathChrome.addSubview(clear)
-        pathChrome.addSubview(clear, positioned: .above, relativeTo: field)
-        pathChrome.refreshAppearance()
-
-        // Jump：与 Path 同宽。系统 rounded bezel 自带左右缩进会「小一圈」，
-        // 改无边框 + layer 铺满 chromeW。
-        let jumpY = pathRowY - gap - ch
-        let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: chromeW, height: ch))
         jump.isBordered = false
         jump.wantsLayer = true
         jump.layer?.cornerRadius = 6
