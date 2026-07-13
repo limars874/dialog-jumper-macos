@@ -342,17 +342,6 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         jump.keyEquivalent = "\r"
         jumpButton = jump
 
-        // Jump：与 Path chrome 同宽同高
-        let jumpY = pathRowY - gap - ch
-        let jump = NSButton(frame: NSRect(x: inset, y: jumpY, width: chromeW, height: ch))
-        jump.title = "Jump"
-        jump.bezelStyle = .rounded
-        jump.controlSize = .regular
-        jump.font = .systemFont(ofSize: 13, weight: .semibold)
-        jump.target = self
-        jump.action = #selector(jumpFromField)
-        jump.keyEquivalent = "\r"
-        jumpButton = jump
 
         // Segment 行总宽 = chromeW（↻ 收在右缘内）
         let segY = jumpY - gap - ch
