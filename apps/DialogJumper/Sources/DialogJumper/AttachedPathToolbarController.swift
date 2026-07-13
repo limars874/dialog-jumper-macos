@@ -41,12 +41,15 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     private var listScroll: NSScrollView?
     private var listDocument: NSView?
     private var emptyListLabel: NSTextField?
-    private var addFavoriteButton: NSButton?
+    private var pathClearButton: NSButton?
+    private var jumpButton: NSButton?
+    private var moreButton: NSPopUpButton?
     private var pathDragHandle: FolderDragHandleView?
     private var refreshDynamicButton: TinyActionButton?
     private var attachedPID: pid_t?
     private var recentEntries: [RecentFolderEntry] = []
     private var favoriteEntries: [FavoriteFolderEntry] = []
+    private var favoritePathKeys: Set<String> = []
     private var finderEntries: [FinderFolderEntry] = []
     private var zoxideEntries: [ZoxideFolderEntry] = []
     private var finderDidLoadOnce = false
@@ -119,10 +122,18 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
     /// Refresh Favorites rows (call after manage / on show).
     func setFavorites(_ entries: [FavoriteFolderEntry]) {
         favoriteEntries = entries
+        favoritePathKeys = Set(entries.map { Self.canonicalPathKey($0.path) })
         updateSegmentTitles()
-        if activeListTab == .favorites {
-            rebuildActiveList()
-        }
+        // ★ 状态依赖收藏集合，各 tab 都重建
+        rebuildActiveList()
+    }
+
+    private static func canonicalPathKey(_ path: String) -> String {
+        (path as NSString).standardizingPath
+    }
+
+    private func isFavoritePath(_ path: String) -> Bool {
+        favoritePathKeys.contains(Self.canonicalPathKey(path))
     }
 
     func focusPathField() {
@@ -202,7 +213,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let w = chromeSize.width
         let h = chromeSize.height
 
-        // 顶区：状态条（加高可见）+ Path + 按钮 + segment
+        // 顶区：status + ⋯ | Path + clear | 拖柄 + 大 Jump | segment
         let status = makeLabel("", bold: false, size: 11)
         status.textColor = .secondaryLabelColor
         status.usesSingleLineMode = true
@@ -210,10 +221,37 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         status.lineBreakMode = .byTruncatingTail
         status.cell?.lineBreakMode = .byTruncatingTail
         status.toolTip = nil
-        status.frame = NSRect(x: 12, y: h - 28, width: w - 24, height: 16)
+        status.frame = NSRect(x: 12, y: h - 28, width: w - 24 - 28, height: 16)
         statusLabel = status
 
-        let field = NSTextField(frame: NSRect(x: 12, y: h - 58, width: w - 24, height: 24))
+        let more = NSPopUpButton(frame: NSRect(x: w - 12 - 26, y: h - 30, width: 26, height: 20), pullsDown: true)
+        more.isBordered = false
+        more.imagePosition = .imageOnly
+        let moreMenu = NSMenu()
+        let placeholder = NSMenuItem()
+        let dots = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        placeholder.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "More")?
+            .withSymbolConfiguration(dots)
+        moreMenu.addItem(placeholder)
+        let addFav = NSMenuItem(
+            title: "Add Path to Favorites",
+            action: #selector(addFavoriteFromField),
+            keyEquivalent: ""
+        )
+        addFav.target = self
+        moreMenu.addItem(addFav)
+        let copyPath = NSMenuItem(
+            title: "Copy Path Field",
+            action: #selector(copyPathField),
+            keyEquivalent: ""
+        )
+        copyPath.target = self
+        moreMenu.addItem(copyPath)
+        more.menu = moreMenu
+        more.toolTip = "More"
+        moreButton = more
+
+        let field = NSTextField(frame: NSRect(x: 12, y: h - 58, width: w - 24 - 22, height: 24))
         field.placeholderString = "Paste path…  / or ~"
         field.isEditable = true
         field.isSelectable = true
@@ -224,7 +262,20 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         field.action = #selector(jumpFromField)
         pathField = field
 
-        let pathHandle = FolderDragHandleView(frame: NSRect(x: 12, y: h - 94, width: 22, height: 28))
+        let clear = NSButton(frame: NSRect(x: w - 12 - 20, y: h - 56, width: 20, height: 20))
+        clear.bezelStyle = .inline
+        clear.isBordered = false
+        clear.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Clear path")?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
+        clear.imagePosition = .imageOnly
+        clear.contentTintColor = .secondaryLabelColor
+        clear.target = self
+        clear.action = #selector(clearPathField)
+        clear.isHidden = true
+        clear.toolTip = "Clear path"
+        pathClearButton = clear
+
+        let pathHandle = FolderDragHandleView(frame: NSRect(x: 12, y: h - 96, width: 22, height: 32))
         pathHandle.pathProvider = { [weak self] in
             self?.resolvedPathFieldFolder()
         }
@@ -234,21 +285,16 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         pathHandle.toolTip = "Drag Path folder onto Open/Save panel"
         pathDragHandle = pathHandle
 
-        let jump = NSButton(frame: NSRect(x: 38, y: h - 94, width: 72, height: 28))
+        let jump = NSButton(frame: NSRect(x: 38, y: h - 96, width: w - 12 - 38, height: 32))
         jump.title = "Jump"
         jump.bezelStyle = .rounded
+        jump.controlSize = .large
+        jump.font = .systemFont(ofSize: 13, weight: .semibold)
         jump.target = self
         jump.action = #selector(jumpFromField)
+        jump.keyEquivalent = "\r"
+        jumpButton = jump
 
-        let add = NSButton(frame: NSRect(x: 116, y: h - 94, width: 108, height: 28))
-        add.title = "★ Favorite"
-        add.bezelStyle = .rounded
-        add.target = self
-        add.action = #selector(addFavoriteFromField)
-        add.toolTip = "Add path field folder to Favorites"
-        addFavoriteButton = add
-
-        // 列表：Rec | Fav | Find | Zox + ↻（Finder / Zoxide）
         let segment = NSSegmentedControl()
         segment.segmentCount = 4
         segment.setLabel("Rec", forSegment: ListTab.recents.rawValue)
@@ -260,10 +306,10 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         segment.target = self
         segment.action = #selector(listTabChanged(_:))
         segment.selectedSegment = ListTab.recents.rawValue
-        segment.frame = NSRect(x: 12, y: h - 130, width: w - 24 - 30, height: 24)
+        segment.frame = NSRect(x: 12, y: h - 134, width: w - 24 - 30, height: 24)
         listSegment = segment
 
-        let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 130, width: 26, height: 24))
+        let refresh = TinyActionButton(frame: NSRect(x: w - 12 - 26, y: h - 134, width: 26, height: 24))
         refresh.glyph = "↻"
         refresh.glyphFontSize = 14
         refresh.toolTip = "Refresh"
@@ -282,7 +328,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         listDocument = doc
 
         let listBottom: CGFloat = 12
-        let listTop = h - 142
+        let listTop = h - 146
         let scroll = NSScrollView(frame: NSRect(x: 8, y: listBottom, width: w - 16, height: listTop - listBottom))
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = false
@@ -293,10 +339,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         listScroll = scroll
 
         root.addSubview(status)
+        root.addSubview(more)
         root.addSubview(field)
+        root.addSubview(clear)
         root.addSubview(pathHandle)
         root.addSubview(jump)
-        root.addSubview(add)
         root.addSubview(segment)
         root.addSubview(refresh)
         root.addSubview(empty)
@@ -305,9 +352,11 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         self.panel = panel
         updateSegmentTitles()
         updateRefreshButtonVisibility()
+        updatePathClearVisibility()
         rebuildActiveList()
         return panel
     }
+
 
     private func updateSegmentTitles() {
         guard let segment = listSegment else { return }
@@ -537,6 +586,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
                     container: container,
                     stackX: stackX,
                     index: index,
+                    path: entry.path,
                     star: #selector(self.recentFavorite(_:)),
                     copy: #selector(self.recentCopyPath(_:))
                 )
@@ -560,6 +610,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
                     container: container,
                     stackX: stackX,
                     index: index,
+                    path: entry.path,
                     star: #selector(self.finderFavorite(_:)),
                     copy: #selector(self.finderCopyPath(_:))
                 )
@@ -583,6 +634,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
                     container: container,
                     stackX: stackX,
                     index: index,
+                    path: entry.path,
                     star: #selector(self.zoxideFavorite(_:)),
                     copy: #selector(self.zoxideCopyPath(_:))
                 )
@@ -691,6 +743,7 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         container: NSView,
         stackX: CGFloat,
         index: Int,
+        path: String,
         star: Selector,
         copy: Selector
     ) {
@@ -698,15 +751,16 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
         let starH: CGFloat = 16
         let copyW: CGFloat = 24
         let copyH: CGFloat = 24
+        let favorited = isFavoritePath(path)
 
-        let starBtn = makeTinyButton(title: "★", tag: index, action: star)
+        let starBtn = makeTinyButton(title: favorited ? "★" : "☆", tag: index, action: star)
         starBtn.frame = NSRect(
             x: stackX,
             y: (rowHeight - starH) / 2,
             width: starW,
             height: starH
         )
-        starBtn.toolTip = "Add to Favorites"
+        starBtn.toolTip = favorited ? "Already in Favorites" : "Add to Favorites"
 
         let copyBtn = makeTinyButton(title: "⎘", tag: index, action: copy)
         copyBtn.glyphFontSize = 14
@@ -753,6 +807,32 @@ final class AttachedPathToolbarController: NSObject, NSTextFieldDelegate {
 
     @objc private func jumpFromField() {
         onJump?(pathField?.stringValue ?? "")
+    }
+
+    @objc private func clearPathField() {
+        pathField?.stringValue = ""
+        updatePathClearVisibility()
+        setStatus("")
+    }
+
+    @objc private func copyPathField() {
+        let text = pathField?.stringValue ?? ""
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            setStatus("Path field empty")
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        setStatus("Copied path field")
+    }
+
+    private func updatePathClearVisibility() {
+        let text = pathField?.stringValue ?? ""
+        pathClearButton?.isHidden = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        updatePathClearVisibility()
     }
 
     /// Path 框 → 可拖的真实目录；无效则 nil。
